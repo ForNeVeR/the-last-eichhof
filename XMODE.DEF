@@ -1,0 +1,103 @@
+/*-------------------------------------------------------*/
+/*                                                       */
+/*  Combined definiton file for XMODEC.C & XMODEASM.ASM  */
+/*                                                       */
+/*                                                       */
+
+
+#include "xmode.h"
+
+
+#define FALSE			0
+#define TRUE			1
+
+
+// VGA ports.
+
+#define SC_INDEX		0x3c4		// Sequence Controller Index.
+#define GC_INDEX		0x3ce
+#define CRTC_INDEX		0x3d4		// CRT Controller Index.
+#define MISC_OUTPUT		0x3c2		// Miscellaneous Output register.
+#define MAP_MASK		0x2
+#define BIT_MASK		0x8
+#define INPUT_STATUS		0x3da
+#define START_ADDR_HIGH		0xc
+#define START_ADDR_LOW		0xd
+
+
+// VGA 320x240 low level graphic constants.
+
+#define BYTESPERLINE		80
+#define PAGESIZE		(BYTESPERLINE * (YMAX+1))
+#define OFFSCREEN		(2*PAGESIZE)
+#define PALETTESIZE		768
+
+
+/* --- Low level sprite definition structure.
+   If a sprite has been pushed into the following structure it is ready
+   to be used by the low level sprite routines.
+*/
+
+struct lowspr {
+
+   int   active;		// Is sprite active ?
+   int   xs;			// x size.
+   int   ys;                    // y size.
+   int   nadd;			// picture increment value.
+   int   maxn;                  // number of pictures * 2
+   int   xsalign;
+   int   picsize;
+   int	 seqsize;
+   int   fullsize;
+   char  far *data;		// Sprite data: Ptr into SCREEN MEM
+   char  far *mask;             // Mask data: Ptr into MAIN MEM
+
+};
+
+
+// Object states.
+#define O_FLASH                 0x0001
+struct	objstrc {
+
+   int	 active;
+   int	 flags;			// State of the object.
+   int	 x;			// (x, y)
+   int	 y;
+   int	 xa;			// (xa, ya) in active screen.
+   int	 ya;
+   int	 xb;
+   int	 yb;
+   int	 xs;
+   int	 ys;
+   int	 n;
+   int   nadd;
+   int	 maxn;
+   int   cycle;			// 0-forward, 1-destroy
+   int   destroy;
+   int	 sprite;
+
+};
+
+
+struct sfieldstrc {
+
+   int    active;		// Field active?
+   int    go;
+   int    n;			// Number of STARS in field.
+   struct starstrc *star;	// Pointer to array of stars.
+
+};
+
+
+/* ----- Global data ----- */
+
+struct lowspr	  _sprite[MAXSPRITES];
+struct objstrc	  _obj[MAXOBJS];
+struct sfieldstrc _sfield;
+unsigned	  base = 0xa000;
+unsigned          page = 0;
+
+int	          objflashcolor = 15;	// Object flashes in white first.
+int               backgrndcolor = 0;	// Background is black.
+unsigned char     palette[PALETTESIZE];	// Palette currently in use.
+
