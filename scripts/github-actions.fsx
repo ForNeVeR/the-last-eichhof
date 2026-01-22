@@ -1,5 +1,5 @@
 let licenseHeader = """
-# SPDX-FileCopyrightText: 2026 Friedrich von Never <friedrich@fornever.me>
+# SPDX-FileCopyrightText: 2024-2026 Friedrich von Never <friedrich@fornever.me>
 #
 # SPDX-License-Identifier: MIT
 
@@ -19,9 +19,7 @@ let workflows = [
         onSchedule "0 0 * * 6"
         onWorkflowDispatch
 
-        job "verify-workflows" [
-            runsOn "ubuntu-24.04"
-
+        let dotNetJob name body = job name [
             setEnv "DOTNET_CLI_TELEMETRY_OPTOUT" "1"
             setEnv "DOTNET_NOLOGO" "1"
             setEnv "NUGET_PACKAGES" "${{ github.workspace }}/.github/nuget-packages"
@@ -31,8 +29,33 @@ let workflows = [
             step(
                 usesSpec = Auto "actions/setup-dotnet"
             )
+
+            yield! body
+        ]
+
+        dotNetJob "verify-workflows" [
+            runsOn "ubuntu-24.04"
             step(
                 run = "dotnet fsi ./scripts/github-actions.fsx verify"
+            )
+        ]
+
+        dotNetJob "build" [
+            strategy(failFast = false, matrix = [
+                "image", [
+                    "macos-14"
+                    "ubuntu-24.04"
+                    "ubuntu-24.04-arm"
+                    "windows-11-arm"
+                    "windows-2025"
+                ]
+            ])
+            runsOn "${{ matrix.image }}"
+
+            step(
+                name = "Install DOSBox-X",
+                shell = "pwsh",
+                run = "scripts/Install-DOSBox-X.ps1"
             )
         ]
     ]

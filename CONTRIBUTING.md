@@ -8,7 +8,9 @@ Contributor Guide
 
 Prerequisites
 -------------
-To work with the project, you'll need [.NET SDK 10][dotnet-sdk] or later.
+To work with the project, you'll need the following software:
+- [.NET SDK 10][dotnet-sdk] or later,
+- [DOSBox-X][dosbox-x].
 
 GitHub Actions
 --------------
@@ -20,3 +22,4 @@ $ dotnet fsi scripts/github-actions.fsx
 ```
 
 [dotnet-sdk]: https://dotnet.microsoft.com/en-us/download
+[dosbox-x]: https://dosbox-x.com/

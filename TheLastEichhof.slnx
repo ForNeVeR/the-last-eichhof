@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/scripts/">
     <File Path="scripts/github-actions.fsx" />
+    <File Path="scripts/Install-DOSBox-X.ps1" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
