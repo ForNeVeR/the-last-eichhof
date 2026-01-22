@@ -20,7 +20,7 @@ let workflows = [
         onWorkflowDispatch
 
         job "verify-workflows" [
-            runsOn "ubuntu-latest"
+            runsOn "ubuntu-24.04"
 
             setEnv "DOTNET_CLI_TELEMETRY_OPTOUT" "1"
             setEnv "DOTNET_NOLOGO" "1"
