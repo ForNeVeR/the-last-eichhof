@@ -1,2 +1,9 @@
-﻿# JetBrains Rider:
+﻿# SPDX-FileCopyrightText: 2026 Friedrich von Never <friedrich@fornever.me>
+#
+# SPDX-License-Identifier: MIT
+
+# JetBrains Rider:
 /.idea/
+
+# .NET user properties files:
+*.user
