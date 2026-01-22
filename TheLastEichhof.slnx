@@ -9,6 +9,8 @@
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path="CONTRIBUTING.md" />
+    <File Path="global.json" />
+    <File Path="global.json.license" />
     <File Path="renovate.json" />
     <File Path="renovate.json.license" />
   </Folder>
