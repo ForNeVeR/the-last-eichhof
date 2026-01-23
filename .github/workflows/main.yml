@@ -22,8 +22,10 @@ jobs:
       DOTNET_NOLOGO: 1
       NUGET_PACKAGES: ${{ github.workspace }}/.github/nuget-packages
     steps:
-    - uses: actions/checkout@v5
-    - uses: actions/setup-dotnet@v5
+    - name: Check out the sources
+      uses: actions/checkout@v5
+    - name: Set up .NET SDK
+      uses: actions/setup-dotnet@v5
     - run: dotnet fsi ./scripts/github-actions.fsx verify
   build:
     strategy:
@@ -41,8 +43,13 @@ jobs:
       DOTNET_NOLOGO: 1
       NUGET_PACKAGES: ${{ github.workspace }}/.github/nuget-packages
     steps:
-    - uses: actions/checkout@v5
-    - uses: actions/setup-dotnet@v5
+    - name: Check out the sources
+      uses: actions/checkout@v5
+    - name: Set up .NET SDK
+      uses: actions/setup-dotnet@v5
     - name: Install DOSBox-X
       shell: pwsh
       run: scripts/Install-DOSBox-X.ps1
+    - name: Verify the build environment
+      shell: pwsh
+      run: dotnet run --project Build

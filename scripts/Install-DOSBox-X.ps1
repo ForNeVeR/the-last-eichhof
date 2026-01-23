@@ -19,7 +19,7 @@ elseif ($IsMacOS)
 elseif ($IsWindows)
 {
     Write-Host 'Installing DOSBox-X on Windows using WinGet...'
-    winget install --id=DOSBox-X.DOSBox-X -e
+    winget install --id joncampbell123.DOSBox-X -e
 }
 else
 {

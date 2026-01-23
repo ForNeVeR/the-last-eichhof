@@ -24,9 +24,11 @@ let workflows = [
             setEnv "DOTNET_NOLOGO" "1"
             setEnv "NUGET_PACKAGES" "${{ github.workspace }}/.github/nuget-packages"
             step(
+                name = "Check out the sources",
                 usesSpec = Auto "actions/checkout"
             )
             step(
+                name = "Set up .NET SDK",
                 usesSpec = Auto "actions/setup-dotnet"
             )
 
@@ -52,10 +54,20 @@ let workflows = [
             ])
             runsOn "${{ matrix.image }}"
 
-            step(
-                name = "Install DOSBox-X",
-                shell = "pwsh",
-                run = "scripts/Install-DOSBox-X.ps1"
+            let pwsh(name, command) =
+                step(
+                    name = name,
+                    shell = "pwsh",
+                    run = command
+                )
+
+            pwsh(
+                "Install DOSBox-X",
+                "scripts/Install-DOSBox-X.ps1"
+            )
+            pwsh(
+                "Verify the build environment",
+                "dotnet run --project Build"
             )
         ]
     ]
