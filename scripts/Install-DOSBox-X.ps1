@@ -22,7 +22,7 @@ elseif ($IsMacOS)
 elseif ($IsWindows)
 {
     Write-Host 'Installing DOSBox-X on Windows using WinGet…'
-    winget install --id joncampbell123.DOSBox-X -e
+    winget install --accept-source-agreements --id joncampbell123.DOSBox-X -e
     if (!$?) { throw "Error from winget: $LASTEXITCODE." }
 }
 else
