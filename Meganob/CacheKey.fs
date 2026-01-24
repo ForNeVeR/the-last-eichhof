@@ -2,6 +2,7 @@ namespace Meganob
 
 open System
 open System.Security.Cryptography
+open System.Text
 open System.Text.Json
 
 [<Interface>]
@@ -11,15 +12,14 @@ type ISerializableKey =
 
 module CacheKey =
     let ComputeHash(key: ISerializableKey): string =
-        use doc = JsonDocument.Parse("{}")
+        // Key's hash should depend on its type discriminator and its content, nothing else.
+        // Discriminator is needed for a case when several keys have the same representation, e.g. dummy "{}".
         use stream = new System.IO.MemoryStream()
-        use writer = new Utf8JsonWriter(stream)
-        writer.WriteStartObject()
-        writer.WriteString("type", key.TypeDiscriminator)
-        writer.WritePropertyName("key")
-        key.ToJson().WriteTo(writer)
-        writer.WriteEndObject()
-        writer.Flush()
+        do
+            use writer = new Utf8JsonWriter(stream)
+            key.ToJson().WriteTo(writer)
+
+        stream.Write(Encoding.UTF8.GetBytes key.TypeDiscriminator)
 
         let bytes = stream.ToArray()
         let hashBytes = SHA256.HashData(bytes)
