@@ -31,6 +31,14 @@ let workflows = [
                 name = "Set up .NET SDK",
                 usesSpec = Auto "actions/setup-dotnet"
             )
+            step(
+                name = "Cache NuGet packages",
+                usesSpec = Auto "actions/cache",
+                options = Map.ofList [
+                    "key", "${{ runner.os }}.nuget.${{ hashFiles('**/*.*proj', '**/*.props') }}"
+                    "path", "${{ env.NUGET_PACKAGES }}"
+                ]
+            )
 
             yield! body
         ]
@@ -72,10 +80,19 @@ let workflows = [
 
         dotNetJob "build" [
             yield! runOnAllImages
+            setEnv "MEGANOB_CACHE_BASE" "${{ github.workspace }}/.meganob"
 
             pwsh(
                 "Install DOSBox-X",
                 "scripts/Install-DOSBox-X.ps1"
+            )
+            step(
+                name = "Build system cache",
+                usesSpec = Auto "actions/cache",
+                options = Map.ofList [
+                    "key", "${{ runner.os }}.meganob"
+                    "path", "${{ env.MEGANOB_CACHE_BASE }}"
+                ]
             )
             pwsh(
                 "Build the game",
