@@ -1,25 +1,22 @@
-﻿open System.Threading.Tasks
+﻿open System
+open System.Threading.Tasks
 open Build
+open Meganob
 
-module ExitCodes =
-    let Success = 0
-    let DosBoxXNotFound = 1
-
-let private verifyEnvironment() = task {
-    let dosBox = DosBoxX.FindExecutable()
-    match dosBox with
-    | None ->
-        printfn "Cannot find DOSBox-X executable file."
-        return ExitCodes.DosBoxXNotFound
-    | Some db ->
-        printfn $"Found DOSBox-X executable file: \"%s{db.Value}\"."
-        do! DosBoxX.RunCommand(db, "ver", printfn "%s")
-        return ExitCodes.Success
-}
-
-let private runSynchronously(task: Task<_>) =
+let private RunSynchronously(task: Task<_>) =
     task.GetAwaiter().GetResult()
 
+let private dosBoxVersion = Dependency.Async(DosBoxX.GetVersion)
+let private borlandCppArtifact = Dependency.DownloadFile(
+    Uri "https://archive.org/download/bcpp31/BCPP31.ZIP",
+    Sha256 "CEAA8852DD2EE33AEDD471595051931BF96B44EFEE2AA2CD3706E41E38426F84"
+)
+let private downloadBorlandCpp = Target.OfDependencies [ borlandCppArtifact ]
+
+let private targets = Map.ofArray [|
+    "build", Target.OfDependencies(dosBoxVersion, borlandCppArtifact)
+|]
+
 [<EntryPoint>]
-let main(_: string[]): int =
-    verifyEnvironment() |> runSynchronously
+let main(args: string[]): int =
+    BuildSystem.Run(targets, args) |> RunSynchronously

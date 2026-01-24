@@ -2,8 +2,10 @@
 
 open System
 open System.IO
+open System.Text.RegularExpressions
 open System.Threading.Tasks
 open Medallion.Shell
+open Meganob
 open TruePath
 open TruePath.SystemIo
 
@@ -41,7 +43,7 @@ let private RunProcess(executable: AbsolutePath, args: string seq): Task<Command
     let args = args |> Seq.map box |> Seq.toArray
     Command.Run(executable.Value, arguments = args).Task
 
-let RunCommand(dosBox: AbsolutePath, command: string, logger: string -> unit): Task = task {
+let private RunCommand(dosBox: AbsolutePath, command: string, logger: string -> unit) = task {
     let logFile = Temporary.CreateTempFile()
 
     let! result = RunProcess(dosBox, [|
@@ -52,10 +54,27 @@ let RunCommand(dosBox: AbsolutePath, command: string, logger: string -> unit): T
         "-silent" // exit after command termination
     |])
 
-    let! output = logFile.ReadAllTextAsync()
-    logger output
     logger $"Exit code: %d{result.ExitCode}"
     if not result.Success then
         logger $"Command standard output:\n%s{result.StandardOutput}"
         logger $"Command standard error:\n%s{result.StandardError}"
+        failwith $"Cannot execute command \"{command}\". Exit code from {dosBox.FileName}: {result.ExitCode}."
+
+    let! output = logFile.ReadAllTextAsync()
+    return output
+}
+
+let GetVersion(context: IDependencyContext): Task<string> = task {
+    let reporter = context.Reporter
+
+    reporter.Status "Searching for executable"
+    let dosBox = FindExecutable()
+    match dosBox with
+    | None -> return failwithf "Cannot find DOSBox-X executable."
+    | Some dosBox ->
+        let! output = RunCommand(dosBox, "ver", reporter.Log)
+        let matchResult = Regex("(?:^|\n)DOSBox.+?version (.+?). Reported").Match output
+        if not matchResult.Success then
+            failwithf "Cannot parse DOSBox-X version."
+        return matchResult.Groups[1].Value
 }

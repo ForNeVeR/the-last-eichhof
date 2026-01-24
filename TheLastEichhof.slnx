@@ -17,4 +17,5 @@
     <File Path="renovate.json.license" />
   </Folder>
   <Project Path="Build/Build.fsproj" />
+  <Project Path="Meganob/Meganob.fsproj" />
 </Solution>
