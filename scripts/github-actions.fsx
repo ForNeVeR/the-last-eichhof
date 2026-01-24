@@ -5,7 +5,7 @@ let licenseHeader = """
 
 # This file is auto-generated.""".Trim()
 
-#r "nuget: Generaptor.Library, 1.9.0"
+#r "nuget: Generaptor.Library, 1.9.1"
 open Generaptor
 open Generaptor.GitHubActions
 open type Generaptor.GitHubActions.Commands
@@ -42,7 +42,7 @@ let workflows = [
             )
         ]
 
-        dotNetJob "build" [
+        let runOnAllImages = [
             strategy(failFast = false, matrix = [
                 "image", [
                     "macos-15"
@@ -53,20 +53,32 @@ let workflows = [
                 ]
             ])
             runsOn "${{ matrix.image }}"
+        ]
 
-            let pwsh(name, command) =
-                step(
-                    name = name,
-                    shell = "pwsh",
-                    run = command
-                )
+        let pwsh(name, command) =
+            step(
+                name = name,
+                shell = "pwsh",
+                run = command
+            )
+
+        dotNetJob "meganob-tests" [
+            yield! runOnAllImages
+            pwsh(
+                "Run tests",
+                "dotnet test"
+            )
+        ]
+
+        dotNetJob "build" [
+            yield! runOnAllImages
 
             pwsh(
                 "Install DOSBox-X",
                 "scripts/Install-DOSBox-X.ps1"
             )
             pwsh(
-                "Verify the build environment",
+                "Build the game",
                 "dotnet run --project Build"
             )
         ]
