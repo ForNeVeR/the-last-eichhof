@@ -1,6 +1,7 @@
 ﻿namespace Meganob
 
 open System.Threading.Tasks
+open Spectre.Console
 
 [<Interface>]
 type IProgressReporter =
@@ -13,12 +14,20 @@ type IReporter =
     abstract member Log: string -> unit
 
 module ProgressReporter =
-    let Null: IProgressReporter =
-        { new IProgressReporter with
-            member _.Report _ = () }
+    let Null: IProgressReporter = {
+        new IProgressReporter with
+            member _.Report _ = ()
+    }
 
-type internal RootReporter() =
+type internal SpectreReporter(spectre: ProgressContext) =
     interface IReporter with
-        member this.Log(var0) = failwith "todo"
-        member this.Status(newStatus) = failwith "todo"
-        member this.WithProgress(header, total, action) = failwith "todo"
+        member _.Log(message) =
+            AnsiConsole.MarkupLine(message)
+        member _.Status(newStatus) =
+            AnsiConsole.MarkupLine($"[grey]Status:[/] {newStatus}")
+        member _.WithProgress(header, total, action) =
+            task {
+                let task = spectre.AddTask(header, true, float total)
+                let reporter = { new IProgressReporter with member _.Report value = task.Value <- float value }
+                return! action reporter
+            }

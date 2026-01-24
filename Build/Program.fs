@@ -11,10 +11,10 @@ let private borlandCppArtifact = Dependency.DownloadFile(
     Uri "https://archive.org/download/bcpp31/BCPP31.ZIP",
     Sha256 "CEAA8852DD2EE33AEDD471595051931BF96B44EFEE2AA2CD3706E41E38426F84"
 )
-let private downloadBorlandCpp = Target.OfDependencies [ borlandCppArtifact ]
+let private downloadBorlandCpp = Target.OfDependencies("downloadBorlandCpp", [ borlandCppArtifact ])
 
 let private targets = Map.ofArray [|
-    "build", Target.OfDependencies(dosBoxVersion, borlandCppArtifact)
+    "build", Target.OfDependencies("build", [ dosBoxVersion; borlandCppArtifact ])
 |]
 
 [<EntryPoint>]

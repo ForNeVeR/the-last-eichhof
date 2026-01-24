@@ -10,8 +10,8 @@
         <Compile Include="Reporter.fs" />
         <Compile Include="Dependency.fs" />
         <Compile Include="Target.fs" />
-        <Compile Include="BuildSystem.fs" />
         <Compile Include="BuildContext.fs" />
+        <Compile Include="BuildSystem.fs" />
     </ItemGroup>
 
     <ItemGroup>

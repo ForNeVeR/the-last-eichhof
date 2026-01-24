@@ -4,6 +4,7 @@ open System
 open System.Collections.Generic
 open System.Threading.Tasks
 open Meganob
+open Spectre.Console
 
 module ExitCodes =
     let Success = 0
@@ -13,21 +14,29 @@ module ExitCodes =
 
 let DefaultTarget: string = "build"
 
-let private ExecuteTarget(context: IBuildContext, target: Target) =
+let private ExecuteTarget(context: IBuildContext, target: Target): Task<int> =
     let dependencyContext = DependencyContext.Of context
-    context.Reporter.WithProgress($"Dependencies of {target.Name}", target.Dependencies.Length, fun progress -> task {
-        let mutable counter = 0L
-        for dependency in target.Dependencies do
-            do! context.StoreDependency dependency
-            counter <- counter + 1L
-            progress.Report counter
-    })
+    context.Reporter.WithProgress(
+        $"Dependencies of {target.Name}",
+        int64 target.Dependencies.Length,
+        fun progress -> task {
+            let mutable counter = 0L
+            for dependency in target.Dependencies do
+                do! context.StoreDependency(dependency, dependencyContext)
+                counter <- counter + 1L
+                progress.Report counter
+            return ExitCodes.Success
+        }
+    )
 
 let private FindAndExecuteTarget(targets: IReadOnlyDictionary<string, Target>, name: string) =
-    let buildContext = BuildContext()
-    match targets.GetValueOrDefault name with
-    | Null -> Task.FromResult ExitCodes.TargetNotFound
-    | NonNull target -> ExecuteTarget buildContext target
+    match targets.TryGetValue name with
+    | true, target ->
+        AnsiConsole.Progress().StartAsync(fun ctx -> task {
+            let buildContext = BuildContext ctx
+            return! ExecuteTarget(buildContext, target)
+        })
+    | false, _ -> Task.FromResult ExitCodes.TargetNotFound
 
 let private PrintUsage() =
     printfn "Arguments:\n  [target] - execute the selected target. By default, the target is \"{DefaultTarget}\"."

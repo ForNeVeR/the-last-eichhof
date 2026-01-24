@@ -54,7 +54,7 @@ let private RunCommand(dosBox: AbsolutePath, command: string, logger: string -> 
         "-silent" // exit after command termination
     |])
 
-    logger $"Exit code: %d{result.ExitCode}"
+    logger $"Command {command} exit code: %d{result.ExitCode}"
     if not result.Success then
         logger $"Command standard output:\n%s{result.StandardOutput}"
         logger $"Command standard error:\n%s{result.StandardError}"
@@ -69,6 +69,7 @@ let GetVersion(context: IDependencyContext): Task<string> = task {
 
     reporter.Status "Searching for executable"
     let dosBox = FindExecutable()
+    reporter.Status "Determining version"
     match dosBox with
     | None -> return failwithf "Cannot find DOSBox-X executable."
     | Some dosBox ->
@@ -76,5 +77,7 @@ let GetVersion(context: IDependencyContext): Task<string> = task {
         let matchResult = Regex("(?:^|\n)DOSBox.+?version (.+?). Reported").Match output
         if not matchResult.Success then
             failwithf "Cannot parse DOSBox-X version."
-        return matchResult.Groups[1].Value
+        let version = matchResult.Groups[1].Value
+        reporter.Log $"DOSBox-X version: {version}."
+        return version
 }

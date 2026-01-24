@@ -58,31 +58,41 @@ module Dependency =
 
     let DownloadFile(uri: Uri, hash: Hash): IDependency<AbsolutePath> =
         Async(fun context -> task {
+            let reporter = context.Reporter
+
             let fileName = uri.AbsolutePath.Split('/') |> Array.last
             let destination = context.TempFolder / fileName
             use client = new HttpClient()
+
+            reporter.Status $"Connecting to {uri.Authority}"
             let! response = client.GetAsync uri
             response.EnsureSuccessStatusCode() |> ignore
 
-            use! stream = response.Content.ReadAsStreamAsync()
+            reporter.Status $"Downloading {uri}"
             let download = fun (byteProgress: IProgressReporter) -> task {
-                use fileStream = destination.OpenWrite()
-
-                let buffer = Array.zeroCreate<byte> 8192
                 let mutable totalBytes = 0L
-                let mutable bytesRead = 0
-                let mutable continueReading = true
-                while continueReading do
-                    let! read = stream.ReadAsync(buffer, 0, buffer.Length)
-                    bytesRead <- read
-                    if bytesRead > 0 then
-                        do! fileStream.WriteAsync(buffer, 0, bytesRead)
-                        totalBytes <- totalBytes + int64 bytesRead
-                        byteProgress.Report totalBytes
-                    else
-                        continueReading <- false
+                do! task {
+                    use! readStream = response.Content.ReadAsStreamAsync()
+                    use writeStream = destination.OpenWrite()
+
+                    let buffer = Array.zeroCreate<byte> 8192
+                    let mutable bytesRead = 0
+                    let mutable continueReading = true
+                    while continueReading do
+                        let! read = readStream.ReadAsync(buffer, 0, buffer.Length)
+                        bytesRead <- read
+                        if bytesRead > 0 then
+                            do! writeStream.WriteAsync(buffer, 0, bytesRead)
+                            totalBytes <- totalBytes + int64 bytesRead
+                            byteProgress.Report totalBytes
+                        else
+                            continueReading <- false
+                }
 
                 do! AssertCorrectHash(destination, hash)
+
+                reporter.Log
+                    $"File \"{fileName}\" ({string totalBytes} bytes) stored at \"{destination.Value}\"."
                 return destination
             }
             match response.Content.Headers.ContentLength with
