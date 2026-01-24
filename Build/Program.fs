@@ -6,7 +6,7 @@ open Meganob
 let private RunSynchronously(task: Task<_>) =
     task.GetAwaiter().GetResult()
 
-let private dosBoxVersion = Dependency.Async(DosBoxX.GetVersion)
+let private dosBoxVersion = Dependency.NonCacheable("DOSBox-X version", DosBoxX.GetVersion)
 let private borlandCppArtifact = Dependency.DownloadFile(
     Uri "https://archive.org/download/bcpp31/BCPP31.ZIP",
     Sha256 "CEAA8852DD2EE33AEDD471595051931BF96B44EFEE2AA2CD3706E41E38426F84"
@@ -19,4 +19,4 @@ let private targets = Map.ofArray [|
 
 [<EntryPoint>]
 let main(args: string[]): int =
-    BuildSystem.Run(targets, args) |> RunSynchronously
+    BuildSystem.Run(targets, args, Some CacheConfig.Default) |> RunSynchronously

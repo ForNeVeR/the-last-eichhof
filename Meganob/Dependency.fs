@@ -1,8 +1,10 @@
-﻿namespace Meganob
+namespace Meganob
 
 open System
+open System.IO
 open System.Net.Http
 open System.Security.Cryptography
+open System.Text.Json
 open System.Threading.Tasks
 open TruePath
 open TruePath.SystemIo
@@ -19,7 +21,14 @@ type internal IBuildContext =
     abstract member StoreDependency: dependency: IDependency * context: IDependencyContext -> Task
 
 and [<Interface>] IDependency =
+    abstract member DisplayName: string
     abstract member GetForStore: IDependencyContext -> Task<obj>
+    /// Cache key for this dependency, or None if not cacheable
+    abstract member CacheKey: ISerializableKey option
+    /// Store value to cache directory. Only called for cacheable dependencies.
+    abstract member StoreToCache: cacheDir: AbsolutePath * value: obj -> Task<unit>
+    /// Load value from cache directory. Returns None if cache invalid/missing.
+    abstract member LoadFromCache: cacheDir: AbsolutePath -> Task<obj option>
 
 [<Interface>]
 type IDependency<'T> =
@@ -35,13 +44,50 @@ module internal DependencyContext =
                 member _.TempFolder = tempFolder.Value
         }
 
+type internal DownloadFileKey(uri: Uri, hash: Hash) =
+    interface ISerializableKey with
+        member _.TypeDiscriminator = "Meganob.DownloadFileKey"
+        member _.ToJson() =
+            let hashStr =
+                match hash with
+                | Sha256 s -> $"SHA256:{s}"
+            let json = $"""{{ "uri": "{uri}", "hash": "{hashStr}" }}"""
+            JsonDocument.Parse(json).RootElement.Clone()
+
 module Dependency =
-    let Async<'a>(getter: IDependencyContext -> Task<'a>): IDependency<'a> = {
+    let NonCacheable<'a>(name: string, getter: IDependencyContext -> Task<'a>): IDependency<'a> = {
         new IDependency<'a> with
+            member _.DisplayName = name
             member _.Get c = getter c
-            member _.GetForStore c= task {
+            member _.GetForStore c = task {
                 let! r = getter c
                 return box r
+            }
+            member _.CacheKey = None
+            member _.StoreToCache(_, _) = task { () }
+            member _.LoadFromCache _ = Task.FromResult None
+    }
+
+    let Cacheable<'a>(
+        name: string,
+        key: ISerializableKey,
+        getter: IDependencyContext -> Task<'a>,
+        storeToCache: AbsolutePath -> 'a -> Task<unit>,
+        loadFromCache: AbsolutePath -> Task<'a option>
+    ): IDependency<'a> = {
+        new IDependency<'a> with
+            member _.DisplayName = name
+            member _.Get c = getter c
+            member _.GetForStore c = task {
+                let! r = getter c
+                return box r
+            }
+            member _.CacheKey = Some key
+            member _.StoreToCache(cacheDir, value) =
+                storeToCache cacheDir (value :?> 'a)
+            member _.LoadFromCache cacheDir = task {
+                let! result = loadFromCache cacheDir
+                return result |> Option.map box
             }
     }
 
@@ -56,50 +102,74 @@ module Dependency =
                 failwithf $"SHA256 of {file.FileName} was expected to be {expectedHash} but was {actualHash}."
         }
 
-    let DownloadFile(uri: Uri, hash: Hash): IDependency<AbsolutePath> =
-        Async(fun context -> task {
-            let reporter = context.Reporter
+    let private DownloadFileCore(uri: Uri, hash: Hash, context: IDependencyContext): Task<AbsolutePath> = task {
+        let reporter = context.Reporter
 
-            let fileName = uri.AbsolutePath.Split('/') |> Array.last
-            let destination = context.TempFolder / fileName
-            use client = new HttpClient()
+        let fileName = uri.AbsolutePath.Split('/') |> Array.last
+        let destination = context.TempFolder / fileName
+        use client = new HttpClient()
 
-            reporter.Status $"Connecting to {uri.Authority}"
-            let! response = client.GetAsync uri
-            response.EnsureSuccessStatusCode() |> ignore
+        reporter.Status $"Connecting to {uri.Authority}"
+        let! response = client.GetAsync uri
+        response.EnsureSuccessStatusCode() |> ignore
 
-            reporter.Status $"Downloading {uri}"
-            let download = fun (byteProgress: IProgressReporter) -> task {
-                let mutable totalBytes = 0L
-                do! task {
-                    use! readStream = response.Content.ReadAsStreamAsync()
-                    use writeStream = destination.OpenWrite()
+        reporter.Status $"Downloading {uri}"
+        let download = fun (byteProgress: IProgressReporter) -> task {
+            let mutable totalBytes = 0L
+            do! task {
+                use! readStream = response.Content.ReadAsStreamAsync()
+                use writeStream = destination.OpenWrite()
 
-                    let buffer = Array.zeroCreate<byte> 8192
-                    let mutable bytesRead = 0
-                    let mutable continueReading = true
-                    while continueReading do
-                        let! read = readStream.ReadAsync(buffer, 0, buffer.Length)
-                        bytesRead <- read
-                        if bytesRead > 0 then
-                            do! writeStream.WriteAsync(buffer, 0, bytesRead)
-                            totalBytes <- totalBytes + int64 bytesRead
-                            byteProgress.Report totalBytes
-                        else
-                            continueReading <- false
-                }
-
-                do! AssertCorrectHash(destination, hash)
-
-                reporter.Log
-                    $"File \"{fileName}\" ({string totalBytes} bytes) stored at \"{destination.Value}\"."
-                return destination
+                let buffer = Array.zeroCreate<byte> 8192
+                let mutable bytesRead = 0
+                let mutable continueReading = true
+                while continueReading do
+                    let! read = readStream.ReadAsync(buffer, 0, buffer.Length)
+                    bytesRead <- read
+                    if bytesRead > 0 then
+                        do! writeStream.WriteAsync(buffer, 0, bytesRead)
+                        totalBytes <- totalBytes + int64 bytesRead
+                        byteProgress.Report totalBytes
+                    else
+                        continueReading <- false
             }
-            match response.Content.Headers.ContentLength with
-            | NullV -> return! download ProgressReporter.Null
-            | NonNullV(contentLength) -> return! context.Reporter.WithProgress(
-                $"Download {fileName}",
-                contentLength,
-                download
-            )
-        })
+
+            do! AssertCorrectHash(destination, hash)
+
+            reporter.Log
+                $"File \"{fileName}\" ({string totalBytes} bytes) stored at \"{destination.Value}\"."
+            return destination
+        }
+        match response.Content.Headers.ContentLength with
+        | NullV -> return! download ProgressReporter.Null
+        | NonNullV(contentLength) -> return! context.Reporter.WithProgress(
+            $"Download {fileName}",
+            contentLength,
+            download
+        )
+    }
+
+    let DownloadFile(uri: Uri, hash: Hash): IDependency<AbsolutePath> =
+        let key = DownloadFileKey(uri, hash)
+        let fileName = uri.AbsolutePath.Split('/') |> Array.last
+
+        let storeToCache (cacheDir: AbsolutePath) (downloadedPath: AbsolutePath) = task {
+            let cachedFile = cacheDir / fileName
+            File.Copy(downloadedPath.Value, cachedFile.Value, true)
+        }
+
+        let loadFromCache (cacheDir: AbsolutePath) = task {
+            let cachedFile = cacheDir / fileName
+            if File.Exists(cachedFile.Value) then
+                return Some cachedFile
+            else
+                return None
+        }
+
+        Cacheable(
+            $"Download {fileName} from {uri.Authority}",
+            key,
+            (fun context -> DownloadFileCore(uri, hash, context)),
+            storeToCache,
+            loadFromCache
+        )

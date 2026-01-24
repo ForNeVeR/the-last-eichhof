@@ -1,4 +1,4 @@
-﻿module Meganob.BuildSystem
+module Meganob.BuildSystem
 
 open System
 open System.Collections.Generic
@@ -29,11 +29,14 @@ let private ExecuteTarget(context: IBuildContext, target: Target): Task<int> =
         }
     )
 
-let private FindAndExecuteTarget(targets: IReadOnlyDictionary<string, Target>, name: string) =
+let private FindAndExecuteTarget(targets: IReadOnlyDictionary<string, Target>, name: string, cacheManager: CacheManager option) =
     match targets.TryGetValue name with
     | true, target ->
         AnsiConsole.Progress().StartAsync(fun ctx -> task {
-            let buildContext = BuildContext ctx
+            let buildContext =
+                match cacheManager with
+                | Some cm -> BuildContext(ctx, cm)
+                | None -> BuildContext(ctx)
             return! ExecuteTarget(buildContext, target)
         })
     | false, _ -> Task.FromResult ExitCodes.TargetNotFound
@@ -41,19 +44,27 @@ let private FindAndExecuteTarget(targets: IReadOnlyDictionary<string, Target>, n
 let private PrintUsage() =
     printfn "Arguments:\n  [target] - execute the selected target. By default, the target is \"{DefaultTarget}\"."
 
-let private RunThrowing(targets: IReadOnlyDictionary<string, Target>, args: string[]) =
+let private RunThrowing(targets: IReadOnlyDictionary<string, Target>, args: string[], cacheManager: CacheManager option) =
     match args with
-    | [||] -> FindAndExecuteTarget(targets, DefaultTarget)
-    | [|targetName|] -> FindAndExecuteTarget(targets, targetName)
+    | [||] -> FindAndExecuteTarget(targets, DefaultTarget, cacheManager)
+    | [|targetName|] -> FindAndExecuteTarget(targets, targetName, cacheManager)
     | _ -> PrintUsage(); Task.FromResult ExitCodes.InvalidArguments
 
 let private ReportError(e: Exception) =
     eprintfn $"{e}"
 
-let Run(targets: IReadOnlyDictionary<string, Target>, args: string seq): Task<int> = task {
+let Run(targets: IReadOnlyDictionary<string, Target>, args: string seq, cacheConfig: CacheConfig option): Task<int> = task {
     try
         let args = Array.ofSeq args
-        return! RunThrowing(targets, args)
+        let! cacheManager = task {
+            match cacheConfig with
+            | Some config ->
+                let cm = CacheManager(config)
+                do! cm.Cleanup()
+                return Some cm
+            | None -> return None
+        }
+        return! RunThrowing(targets, args, cacheManager)
     with
     | e ->
         ReportError e

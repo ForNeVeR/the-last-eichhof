@@ -18,4 +18,5 @@
   </Folder>
   <Project Path="Build/Build.fsproj" />
   <Project Path="Meganob/Meganob.fsproj" />
+  <Project Path="Meganob.Tests/Meganob.Tests.fsproj" />
 </Solution>

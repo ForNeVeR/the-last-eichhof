@@ -6,8 +6,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="AssemblyInfo.fs" />
         <Compile Include="Hash.fs" />
         <Compile Include="Reporter.fs" />
+        <Compile Include="CacheConfig.fs" />
+        <Compile Include="CacheKey.fs" />
+        <Compile Include="CacheManager.fs" />
         <Compile Include="Dependency.fs" />
         <Compile Include="Target.fs" />
         <Compile Include="BuildContext.fs" />
