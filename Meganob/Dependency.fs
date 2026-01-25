@@ -157,9 +157,9 @@ module Dependency =
             File.Copy(downloadedPath.Value, cachedFile.Value, true)
         }
 
-        let loadFromCache (cacheDir: AbsolutePath) = task {
+        let loadFromCache(cacheDir: AbsolutePath) = task {
             let cachedFile = cacheDir / fileName
-            if File.Exists(cachedFile.Value) then
+            if cachedFile.ExistsFile() then
                 return Some cachedFile
             else
                 return None
