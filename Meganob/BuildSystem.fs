@@ -43,10 +43,10 @@ let private FindAndExecuteTarget(
     | false, _ -> Task.FromResult ExitCodes.TargetNotFound
 
 let private PrintUsage() =
-    printfn "Usage: [target] [options...]"
+    printfn "Usage: [task] [options...]"
     printfn ""
     printfn "Arguments:"
-    printfn $"  target      The build target to execute. Default: \"%s{DefaultTarget}\"."
+    printfn $"  task      The build task to execute. Default: \"%s{DefaultTarget}\"."
     printfn ""
     printfn "Options:"
     printfn "  --verbose   Print detailed cache cleanup information."

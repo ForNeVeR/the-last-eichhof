@@ -1,6 +1,7 @@
 namespace Meganob
 
 open System
+open System.Collections.Immutable
 open System.Diagnostics
 open System.IO
 open System.Net.Http
@@ -175,3 +176,13 @@ module Dependency =
             storeToCache,
             loadFromCache
         )
+
+    let CollectFiles(name: string, folder: AbsolutePath, patterns: LocalPathPattern seq): IDependency<ImmutableArray<AbsolutePath>> =
+        NonCacheable(name, fun _ -> task {
+            // TODO: Provide file hashes as the cache key. We don't need actual caching here, though.
+            return
+                patterns
+                |> Seq.collect(fun p -> folder.GetFiles p.Value)
+                |> Seq.map AbsolutePath
+                |> ImmutableArray.ToImmutableArray
+        })
