@@ -5,6 +5,7 @@ open System.IO
 open System.Text.Json
 open System.Threading.Tasks
 open TruePath
+open TruePath.SystemIo
 
 type internal CacheEntry = {
     TypeDiscriminator: string
@@ -16,28 +17,29 @@ type internal CacheManager(config: CacheConfig) =
     let cacheMetadataFileName = "cache.json"
 
     let getHashedDirectory(key: ISerializableKey): AbsolutePath =
-        let hash = CacheKey.ComputeHash(key)
+        let hash = CacheKey.ComputeHash key
         config.CacheFolder / hash
 
     let ensureDirectoryExists(path: AbsolutePath) =
         Directory.CreateDirectory(path.Value) |> ignore
 
-    let readEntry(cacheDir: AbsolutePath): CacheEntry option =
+    let readEntry(cacheDir: AbsolutePath) = task {
         let metadataPath = cacheDir / cacheMetadataFileName
-        if File.Exists(metadataPath.Value) then
+        if metadataPath.ExistsFile() then
             try
-                let json = File.ReadAllText(metadataPath.Value)
+                let! json = metadataPath.ReadAllTextAsync()
                 let doc = JsonDocument.Parse(json)
                 let root = doc.RootElement
-                Some {
+                return Some {
                     TypeDiscriminator = root.GetProperty("TypeDiscriminator").GetString()
                     Key = root.GetProperty("Key").Clone()
                     LastAccessed = root.GetProperty("LastAccessed").GetDateTimeOffset()
                 }
             with
-            | _ -> None
+            | _ -> return None
         else
-            None
+            return None
+    }
 
     let writeEntryJson(metadataPath: AbsolutePath, typeDiscriminator: string, keyJson: JsonElement, lastAccessed: DateTimeOffset): Task<unit> = task {
         use stream = new MemoryStream()
@@ -48,10 +50,10 @@ type internal CacheManager(config: CacheConfig) =
         keyJson.WriteTo(writer)
         writer.WriteString("LastAccessed", lastAccessed)
         writer.WriteEndObject()
-        writer.Flush()
+        do! writer.FlushAsync()
 
-        let json = System.Text.Encoding.UTF8.GetString(stream.ToArray())
-        do! File.WriteAllTextAsync(metadataPath.Value, json)
+        let json = Text.Encoding.UTF8.GetString(stream.ToArray())
+        do! metadataPath.WriteAllTextAsync json
     }
 
     let writeEntryInternal(cacheDir: AbsolutePath, key: ISerializableKey): Task<unit> = task {
@@ -67,7 +69,7 @@ type internal CacheManager(config: CacheConfig) =
 
     member _.TouchEntry(key: ISerializableKey): Task<unit> = task {
         let cacheDir = getHashedDirectory key
-        match readEntry cacheDir with
+        match! readEntry cacheDir with
         | Some entry ->
             let metadataPath = cacheDir / cacheMetadataFileName
             do! writeEntryJson(metadataPath, entry.TypeDiscriminator, entry.Key, DateTimeOffset.UtcNow)
@@ -77,24 +79,23 @@ type internal CacheManager(config: CacheConfig) =
     member _.HasEntry(key: ISerializableKey): bool =
         let cacheDir = getHashedDirectory key
         let metadataPath = cacheDir / cacheMetadataFileName
-        File.Exists(metadataPath.Value)
+        metadataPath.ExistsFile()
 
     member _.WriteEntry(key: ISerializableKey): Task<unit> =
         let cacheDir = getHashedDirectory key
         writeEntryInternal(cacheDir, key)
 
     member _.Cleanup(): Task<unit> = task {
-        if Directory.Exists(config.CacheFolder.Value) then
+        if config.CacheFolder.ExistsDirectory() then
             let now = DateTimeOffset.UtcNow
             let directories = Directory.GetDirectories(config.CacheFolder.Value)
             for dir in directories do
                 let cacheDir = AbsolutePath dir
-                match readEntry cacheDir with
+                match! readEntry cacheDir with
                 | Some entry ->
                     let age = now - entry.LastAccessed
                     if age > config.MaxAge then
                         Directory.Delete(dir, true)
                 | None ->
-                    // No valid metadata, delete the directory
-                    Directory.Delete(dir, true)
+                    failwithf $"Invalid metadata directory found: \"%s{dir}\". Please remove manually."
     }
