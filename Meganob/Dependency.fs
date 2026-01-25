@@ -51,8 +51,7 @@ type internal DownloadFileKey(uri: Uri, hash: Hash) =
             let hashStr =
                 match hash with
                 | Sha256 s -> $"SHA256:{s}"
-            let json = $"""{{ "uri": "{uri}", "hash": "{hashStr}" }}"""
-            JsonDocument.Parse(json).RootElement.Clone()
+            JsonSerializer.SerializeToElement({| uri = uri.ToString(); hash = hashStr |})
 
 module Dependency =
     let NonCacheable<'a>(name: string, getter: IDependencyContext -> Task<'a>): IDependency<'a> = {
