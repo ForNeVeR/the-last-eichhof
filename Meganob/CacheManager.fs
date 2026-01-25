@@ -13,6 +13,11 @@ type internal CacheEntry = {
     LastAccessed: DateTimeOffset
 }
 
+type CleanupResult = {
+    EntriesRemoved: int
+    BytesFreed: int64
+}
+
 type internal CacheManager(config: CacheConfig) =
     let cacheMetadataFileName = "cache.json"
 
@@ -85,8 +90,14 @@ type internal CacheManager(config: CacheConfig) =
         let cacheDir = getHashedDirectory key
         writeEntryInternal(cacheDir, key)
 
-    member _.Cleanup(): Task<unit> = task {
+    member _.Cleanup(verbose: bool): Task<CleanupResult> = task {
+        let mutable entriesRemoved = 0
+        let mutable bytesFreed = 0L
+
         if config.CacheFolder.ExistsDirectory() then
+            if verbose then
+                printfn $"Cache folder: %s{config.CacheFolder.Value}"
+
             let now = DateTimeOffset.UtcNow
             let directories = Directory.GetDirectories(config.CacheFolder.Value)
             for dir in directories do
@@ -95,7 +106,18 @@ type internal CacheManager(config: CacheConfig) =
                 | Some entry ->
                     let age = now - entry.LastAccessed
                     if age > config.MaxAge then
+                        let hash = Path.GetFileName(dir)
+                        let dirInfo = DirectoryInfo(dir)
+                        let size = dirInfo.EnumerateFiles("*", SearchOption.AllDirectories) |> Seq.sumBy _.Length
+
+                        if verbose then
+                            printfn $"  Removing: %s{hash}"
+
                         Directory.Delete(dir, true)
+                        entriesRemoved <- entriesRemoved + 1
+                        bytesFreed <- bytesFreed + size
                 | None ->
                     failwithf $"Invalid metadata directory found: \"%s{dir}\". Please remove manually."
+
+        return { EntriesRemoved = entriesRemoved; BytesFreed = bytesFreed }
     }

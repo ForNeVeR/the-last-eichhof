@@ -125,10 +125,12 @@ let ``Cleanup removes old entries`` () = task {
         do! System.Threading.Tasks.Task.Delay(10)
 
         // Run cleanup
-        do! manager.Cleanup()
+        let! result = manager.Cleanup(false)
 
         // Verify entry was removed
         Assert.False(Directory.Exists(cacheDir.Value))
+        Assert.Equal(1, result.EntriesRemoved)
+        Assert.True(result.BytesFreed > 0L)
     finally
         cleanup config
 }
@@ -144,10 +146,12 @@ let ``Cleanup keeps recent entries`` () = task {
         let cacheDir = manager.GetCacheDirectory(key)
 
         // Run cleanup
-        do! manager.Cleanup()
+        let! result = manager.Cleanup(false)
 
         // Verify entry still exists (it's recent)
         Assert.True(Directory.Exists(cacheDir.Value))
+        Assert.Equal(0, result.EntriesRemoved)
+        Assert.Equal(0L, result.BytesFreed)
     finally
         cleanup config
 }
@@ -159,9 +163,10 @@ let ``Cleanup handles empty cache folder gracefully`` () = task {
         let manager = CacheManager(config)
 
         // Should not throw even if cache folder doesn't exist
-        do! manager.Cleanup()
+        let! result = manager.Cleanup(false)
 
-        Assert.True(true)
+        Assert.Equal(0, result.EntriesRemoved)
+        Assert.Equal(0L, result.BytesFreed)
     finally
         cleanup config
 }

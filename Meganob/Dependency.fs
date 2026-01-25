@@ -1,6 +1,7 @@
 namespace Meganob
 
 open System
+open System.Diagnostics
 open System.IO
 open System.Net.Http
 open System.Security.Cryptography
@@ -103,6 +104,7 @@ module Dependency =
 
     let private DownloadFileCore(uri: Uri, hash: Hash, context: IDependencyContext): Task<AbsolutePath> = task {
         let reporter = context.Reporter
+        let stopwatch = Stopwatch.StartNew()
 
         let fileName = uri.AbsolutePath.Split('/') |> Array.last
         let destination = context.TempFolder / fileName
@@ -134,9 +136,10 @@ module Dependency =
             }
 
             do! AssertCorrectHash(destination, hash)
+            stopwatch.Stop()
 
             reporter.Log
-                $"File \"{fileName}\" ({string totalBytes} bytes) stored at \"{destination.Value}\"."
+                $"File \"{fileName}\" ({string totalBytes} bytes) stored at \"{destination.Value}\" in %.2f{stopwatch.Elapsed.TotalSeconds}s."
             return destination
         }
         match response.Content.Headers.ContentLength with

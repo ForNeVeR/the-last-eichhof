@@ -43,7 +43,23 @@ let private FindAndExecuteTarget(
     | false, _ -> Task.FromResult ExitCodes.TargetNotFound
 
 let private PrintUsage() =
-    printfn "Arguments:\n  [target] - execute the selected target. By default, the target is \"{DefaultTarget}\"."
+    printfn "Usage: [target] [options...]"
+    printfn ""
+    printfn "Arguments:"
+    printfn $"  target      The build target to execute. Default: \"%s{DefaultTarget}\"."
+    printfn ""
+    printfn "Options:"
+    printfn "  --verbose   Print detailed cache cleanup information."
+
+let private FormatBytes(bytes: int64): string =
+    if bytes >= 1024L * 1024L * 1024L then
+        $"%.2f{float bytes / float (1024L * 1024L * 1024L)} GB"
+    elif bytes >= 1024L * 1024L then
+        $"%.2f{float bytes / float (1024L * 1024L)} MB"
+    elif bytes >= 1024L then
+        $"%.2f{float bytes / float 1024L} KB"
+    else
+        $"%d{bytes} bytes"
 
 let private RunThrowing(targets: IReadOnlyDictionary<string, Target>, args: string[], cacheManager: CacheManager) =
     match args with
@@ -57,8 +73,14 @@ let private ReportError(e: Exception) =
 let Run(targets: IReadOnlyDictionary<string, Target>, args: string seq, cacheConfig: CacheConfig option): Task<int> = task {
     try
         let args = Array.ofSeq args
+        let verbose = args |> Array.contains "--verbose"
+        let args = args |> Array.filter (fun arg -> arg <> "--verbose")
+
         let cacheManager = CacheManager(cacheConfig |> Option.defaultValue CacheConfig.Default)
-        do! cacheManager.Cleanup()
+        let! cleanupResult = cacheManager.Cleanup(verbose)
+        if cleanupResult.EntriesRemoved > 0 then
+            printfn $"Cache cleanup: removed %d{cleanupResult.EntriesRemoved} entries, freed %s{FormatBytes cleanupResult.BytesFreed}"
+
         return! RunThrowing(targets, args, cacheManager)
     with
     | e ->
