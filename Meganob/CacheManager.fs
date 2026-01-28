@@ -18,10 +18,17 @@ type CleanupResult = {
     BytesFreed: int64
 }
 
+[<Interface>]
+type ICacheManager =
+    abstract member Read: inputs: IArtifact seq -> Task<IArtifact option>
+    abstract member Write: inputs: IArtifact seq -> output: IArtifact -> Task
+
 type internal CacheManager(config: CacheConfig) =
     let cacheMetadataFileName = "cache.json"
 
-    let getHashedDirectory(key: ISerializableKey): AbsolutePath =
+    let calculateHash artifacts
+
+    let getHashedDirectory(artifacts: IArtifact seq): AbsolutePath option =
         let hash = CacheKey.ComputeHash key
         config.CacheFolder / hash
 
@@ -86,9 +93,24 @@ type internal CacheManager(config: CacheConfig) =
         let metadataPath = cacheDir / cacheMetadataFileName
         metadataPath.ExistsFile()
 
-    member _.WriteEntry(key: ISerializableKey): Task<unit> =
+    let WriteEntry (inputs: IArtifact seq) (key: ISerializableKey): Task<unit> =
         let cacheDir = getHashedDirectory key
         writeEntryInternal(cacheDir, key)
+
+
+    interface ICacheManager with
+        member this.Store results = task {
+            let calculateInputHash inputTasks =
+                let hashes =
+
+            for kvp in results do
+                let buildTask = kvp.Key
+                let output = kvp.Value
+                match calculateInputHash buildTask.Inputs with
+                | None -> ()
+                | Some hash ->
+                    do! WriteEntry hash output
+        }
 
     member _.Cleanup(verbose: bool): Task<CleanupResult> = task {
         let mutable entriesRemoved = 0

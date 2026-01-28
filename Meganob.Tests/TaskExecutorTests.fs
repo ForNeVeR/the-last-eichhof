@@ -1,4 +1,4 @@
-module Meganob.Tests.BuildSystemExecutionTests
+module Meganob.Tests.TaskExecutorTests
 
 open System
 open System.Collections.Concurrent
@@ -8,7 +8,8 @@ open Xunit
 open Meganob
 
 type TestOutput(value: int) =
-    interface ITaskOutput
+    interface IArtifact
+
     member _.Value = value
 
 let createMockReporter() =
@@ -18,7 +19,7 @@ let createMockReporter() =
         member _.WithProgress(_, _, action) = action ProgressReporter.Null
     }
 
-let createTask(name: string, inputs: BuildTask seq, execute: ITaskOutput seq -> Task<ITaskOutput>) =
+let createTask(name: string, inputs: BuildTask seq, execute: IArtifact seq -> Task<IArtifact>) =
     {
         Id = Guid.NewGuid()
         DisplayName = name
@@ -27,7 +28,7 @@ let createTask(name: string, inputs: BuildTask seq, execute: ITaskOutput seq -> 
     }
 
 let createValueTask(name: string, value: int, inputs: BuildTask seq) =
-    createTask(name, inputs, fun _ -> Task.FromResult(TestOutput(value) :> ITaskOutput))
+    createTask(name, inputs, fun _ -> Task.FromResult(TestOutput(value) :> IArtifact))
 
 [<Fact>]
 let ``Single task with no dependencies executes successfully``(): Task = task {
@@ -47,19 +48,19 @@ let ``Dependencies execute before dependents``(): Task = task {
 
     let taskD = createTask("D", [], fun _ -> task {
         lock executionOrder (fun() -> executionOrder.Add("D"))
-        return TestOutput(1) :> ITaskOutput
+        return TestOutput(1) :> IArtifact
     })
     let taskC = createTask("C", [taskD], fun _ -> task {
         lock executionOrder (fun() -> executionOrder.Add("C"))
-        return TestOutput(2) :> ITaskOutput
+        return TestOutput(2) :> IArtifact
     })
     let taskB = createTask("B", [taskD], fun _ -> task {
         lock executionOrder (fun() -> executionOrder.Add("B"))
-        return TestOutput(3) :> ITaskOutput
+        return TestOutput(3) :> IArtifact
     })
     let taskA = createTask("A", [taskB; taskC], fun _ -> task {
         lock executionOrder (fun() -> executionOrder.Add("A"))
-        return TestOutput(4) :> ITaskOutput
+        return TestOutput(4) :> IArtifact
     })
 
     let! _ = BuildSystem.ExecuteTask(taskA, reporter)
@@ -94,14 +95,14 @@ let ``Independent tasks run concurrently``(): Task = task {
             lock lockObj (fun () ->
                 concurrentCount.Value <- concurrentCount.Value - 1
             )
-            return TestOutput(1) :> ITaskOutput
+            return TestOutput(1) :> IArtifact
         })
 
     let taskB = createSlowTask "B"
     let taskC = createSlowTask "C"
     let taskD = createSlowTask "D"
     let taskA = createTask("A", [taskB; taskC; taskD], fun _ ->
-        Task.FromResult(TestOutput(1) :> ITaskOutput))
+        Task.FromResult(TestOutput(1) :> IArtifact))
 
     let! _ = BuildSystem.ExecuteTask(taskA, reporter)
 
@@ -124,22 +125,22 @@ let ``Diamond dependency pattern executes correctly``(): Task = task {
     //     D
     let taskD = createTask("D", [], fun _ -> task {
         trackExecution "D" |> ignore
-        return TestOutput(1) :> ITaskOutput
+        return TestOutput(1) :> IArtifact
     })
     let taskB = createTask("B", [taskD], fun inputs -> task {
         trackExecution "B" |> ignore
         let dOutput = inputs |> Seq.head :?> TestOutput
-        return TestOutput(dOutput.Value + 1) :> ITaskOutput
+        return TestOutput(dOutput.Value + 1) :> IArtifact
     })
     let taskC = createTask("C", [taskD], fun inputs -> task {
         trackExecution "C" |> ignore
         let dOutput = inputs |> Seq.head :?> TestOutput
-        return TestOutput(dOutput.Value + 10) :> ITaskOutput
+        return TestOutput(dOutput.Value + 10) :> IArtifact
     })
     let taskA = createTask("A", [taskB; taskC], fun inputs -> task {
         trackExecution "A" |> ignore
         let sum = inputs |> Seq.sumBy (fun o -> (o :?> TestOutput).Value)
-        return TestOutput(sum) :> ITaskOutput
+        return TestOutput(sum) :> IArtifact
     })
 
     let! result = BuildSystem.ExecuteTask(taskA, reporter)
@@ -160,10 +161,10 @@ let ``Task failure propagates exception``(): Task = task {
 
     let failingTask = createTask("failing", [], fun _ -> task {
         failwith "Intentional failure"
-        return TestOutput(1) :> ITaskOutput
+        return TestOutput(1) :> IArtifact
     })
     let rootTask = createTask("root", [failingTask], fun _ ->
-        Task.FromResult(TestOutput(1) :> ITaskOutput))
+        Task.FromResult(TestOutput(1) :> IArtifact))
 
     let! ex = Assert.ThrowsAnyAsync<Exception>(fun () -> BuildSystem.ExecuteTask(rootTask, reporter))
 

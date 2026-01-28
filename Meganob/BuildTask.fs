@@ -4,7 +4,8 @@ open System
 open System.Collections.Immutable
 open System.Threading.Tasks
 
-type ITaskOutput = interface end
+/// Task input or output.
+type IArtifact = interface end
 
 /// A build task with dependencies (inputs) that must complete before execution.
 /// The Inputs array uses ImmutableArray which captures references at creation time.
@@ -14,9 +15,9 @@ type ITaskOutput = interface end
 type BuildTask =
     {
         Id: Guid // TODO: Consider dropping this and removing any structural identity — it still allows to break the DAG in case of id reuse (malicious user).
-        DisplayName: string
+        Name: string
         Inputs: ImmutableArray<BuildTask>
-        Execute: ITaskOutput seq -> Task<ITaskOutput>
+        Execute: IArtifact seq -> Task<IArtifact>
     }
 
     override this.Equals(obj) =
