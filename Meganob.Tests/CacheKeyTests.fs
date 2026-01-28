@@ -1,62 +1,55 @@
 module Meganob.Tests.CacheKeyTests
 
-open System
-open System.Text.Json
+open System.Threading.Tasks
 open Xunit
 open Meganob
 
-type TestKey(value: string) =
-    interface ISerializableKey with
-        member _.TypeDiscriminator = "TestKey"
-        member _.ToJson() =
-            let json = $"""{{ "value": "{value}" }}"""
-            JsonDocument.Parse(json).RootElement.Clone()
+type TestArtifact(value: string) =
+    interface IArtifact with
+        member _.GetContentHash() = Task.FromResult <| CacheKey.ComputeCombinedHash [value]
+        member _.CacheData = None
 
 [<Fact>]
-let ``ComputeHash returns deterministic hash for same input`` () =
-    let key1 = TestKey("test-value")
-    let key2 = TestKey("test-value")
+let ``ComputeHash returns deterministic hash for same input``(): Task = task {
+    let artifact1 = TestArtifact("test-value")
+    let artifact2 = TestArtifact("test-value")
 
-    let hash1 = CacheKey.ComputeHash(key1)
-    let hash2 = CacheKey.ComputeHash(key2)
+    let! hash1 = CacheKey.ComputeHash([artifact1])
+    let! hash2 = CacheKey.ComputeHash([artifact2])
 
     Assert.Equal(hash1, hash2)
+}
 
 [<Fact>]
-let ``ComputeHash returns different hash for different values`` () =
-    let key1 = TestKey("value1")
-    let key2 = TestKey("value2")
+let ``ComputeHash returns different hash for different values``(): Task = task {
+    let artifact1 = TestArtifact("value1")
+    let artifact2 = TestArtifact("value2")
 
-    let hash1 = CacheKey.ComputeHash(key1)
-    let hash2 = CacheKey.ComputeHash(key2)
+    let! hash1 = CacheKey.ComputeHash([artifact1])
+    let! hash2 = CacheKey.ComputeHash([artifact2])
 
     Assert.NotEqual<string>(hash1, hash2)
+}
 
 [<Fact>]
-let ``ComputeHash returns valid hex string`` () =
-    let key = TestKey("test")
-    let hash = CacheKey.ComputeHash(key)
+let ``ComputeHash returns valid hex string``(): Task = task {
+    let artifact = TestArtifact("test")
+    let! hash = CacheKey.ComputeHash([artifact])
 
     Assert.Equal(64, hash.Length) // SHA256 produces 64 hex characters
-    Assert.True(hash |> Seq.forall (fun c -> Char.IsAsciiHexDigitLower c))
+    Assert.True(hash |> Seq.forall System.Char.IsAsciiHexDigitLower)
+}
 
 [<Fact>]
-let ``DownloadFileKey produces consistent hash`` () =
-    let uri = Uri("https://example.com/file.zip")
-    let hash = Sha256 "abc123"
-
-    let key1 = DownloadFileKey(uri, hash) :> ISerializableKey
-    let key2 = DownloadFileKey(uri, hash) :> ISerializableKey
-
-    let hash1 = CacheKey.ComputeHash(key1)
-    let hash2 = CacheKey.ComputeHash(key2)
+let ``ComputeCombinedHash produces consistent hash`` () =
+    let hash1 = CacheKey.ComputeCombinedHash ["https://example.com/file.zip"; "abc123"]
+    let hash2 = CacheKey.ComputeCombinedHash ["https://example.com/file.zip"; "abc123"]
 
     Assert.Equal(hash1, hash2)
 
 [<Fact>]
-let ``DownloadFileKey has correct type discriminator`` () =
-    let uri = Uri("https://example.com/file.zip")
-    let hash = Sha256 "abc123"
-    let key = DownloadFileKey(uri, hash) :> ISerializableKey
+let ``ComputeCombinedHash produces different hash for different values`` () =
+    let hash1 = CacheKey.ComputeCombinedHash ["https://example.com/file1.zip"; "abc123"]
+    let hash2 = CacheKey.ComputeCombinedHash ["https://example.com/file2.zip"; "abc123"]
 
-    Assert.Equal("Meganob.DownloadFileKey", key.TypeDiscriminator)
+    Assert.NotEqual(hash1, hash2)

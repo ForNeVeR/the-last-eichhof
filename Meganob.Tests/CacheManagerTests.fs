@@ -2,17 +2,35 @@ module Meganob.Tests.CacheManagerTests
 
 open System
 open System.IO
-open System.Text.Json
+open System.Threading.Tasks
 open Xunit
 open TruePath
+open TruePath.SystemIo
 open Meganob
 
-type TestKey(value: string) =
-    interface ISerializableKey with
-        member _.TypeDiscriminator = "TestKey"
-        member _.ToJson() =
-            let json = $"""{{ "value": "{value}" }}"""
-            JsonDocument.Parse(json).RootElement.Clone()
+type TestArtifact(value: string, cacheable: bool) =
+    let hash = CacheKey.ComputeCombinedHash [value]
+
+    interface IArtifact with
+        member _.GetContentHash() = Task.FromResult hash
+        member _.CacheData =
+            if cacheable then
+                Some { new ICacheable with
+                    member _.StoreTo(cacheDir) = task {
+                        let filePath = cacheDir / "test.txt"
+                        do! filePath.WriteAllTextAsync value
+                    }
+                    member _.LoadFrom(cacheDir) = task {
+                        let filePath = cacheDir / "test.txt"
+                        if filePath.ExistsFile() then
+                            let! content = filePath.ReadAllTextAsync()
+                            return Some (TestArtifact(content, true) :> IArtifact)
+                        else
+                            return None
+                    }
+                }
+            else
+                None
 
 let createTempCacheConfig () =
     let tempDir = Path.Combine(Path.GetTempPath(), $"meganob-test-{Guid.NewGuid()}")
@@ -26,84 +44,60 @@ let cleanup (config: CacheConfig) =
         Directory.Delete(config.CacheFolder.Value, true)
 
 [<Fact>]
-let ``GetCacheDirectory creates directory if not exists`` () =
+let ``TryLoadCached returns None when cache is empty`` () = task {
     let config = createTempCacheConfig()
     try
-        let manager = CacheManager(config)
-        let key = TestKey("test")
+        let manager = CacheManager(config) :> ICacheManager
+        let inputs = [TestArtifact("input", false) :> IArtifact]
 
-        let cacheDir = manager.GetCacheDirectory(key)
+        let! result = manager.TryLoadCached(inputs)
 
-        Assert.True(Directory.Exists(cacheDir.Value))
-    finally
-        cleanup config
-
-[<Fact>]
-let ``GetCacheDirectory returns consistent path for same key`` () =
-    let config = createTempCacheConfig()
-    try
-        let manager = CacheManager(config)
-        let key = TestKey("test")
-
-        let cacheDir1 = manager.GetCacheDirectory(key)
-        let cacheDir2 = manager.GetCacheDirectory(key)
-
-        Assert.Equal(cacheDir1.Value, cacheDir2.Value)
-    finally
-        cleanup config
-
-[<Fact>]
-let ``HasEntry returns false when entry does not exist`` () =
-    let config = createTempCacheConfig()
-    try
-        let manager = CacheManager(config)
-        let key = TestKey("nonexistent")
-
-        let exists = manager.HasEntry(key)
-
-        Assert.False(exists)
-    finally
-        cleanup config
-
-[<Fact>]
-let ``WriteEntry and HasEntry work together`` () = task {
-    let config = createTempCacheConfig()
-    try
-        let manager = CacheManager(config)
-        let key = TestKey("test")
-
-        do! manager.WriteEntry(key)
-        let exists = manager.HasEntry(key)
-
-        Assert.True(exists)
+        Assert.True(result.IsNone)
     finally
         cleanup config
 }
 
 [<Fact>]
-let ``TouchEntry updates last access time`` () = task {
+let ``Store and TryLoadCached work together`` () = task {
     let config = createTempCacheConfig()
     try
-        let manager = CacheManager(config)
-        let key = TestKey("test")
+        let manager = CacheManager(config) :> ICacheManager
+        let inputs = [TestArtifact("input", false) :> IArtifact]
+        let output = TestArtifact("output-value", true) :> IArtifact
 
-        do! manager.WriteEntry(key)
+        do! manager.Store(inputs, output)
+        let! result = manager.TryLoadCached(inputs)
 
-        // Small delay to ensure time difference
-        do! System.Threading.Tasks.Task.Delay(50)
+        Assert.True(result.IsSome)
+    finally
+        cleanup config
+}
 
-        do! manager.TouchEntry(key)
+[<Fact>]
+let ``Store does nothing for non-cacheable outputs`` () = task {
+    let config = createTempCacheConfig()
+    try
+        let manager = CacheManager(config) :> ICacheManager
+        let inputs = [TestArtifact("input", false) :> IArtifact]
+        let output = TestArtifact("output-value", false) :> IArtifact  // Not cacheable
 
-        // Read cache.json to verify last access time was updated
-        let cacheDir = manager.GetCacheDirectory(key)
-        let metadataPath = cacheDir / "cache.json"
-        let json = File.ReadAllText(metadataPath.Value)
-        let doc = JsonDocument.Parse(json)
-        let lastAccessed = doc.RootElement.GetProperty("LastAccessed").GetDateTimeOffset()
+        do! manager.Store(inputs, output)
+        let! result = manager.TryLoadCached(inputs)
 
-        // Last accessed should be very recent
-        let timeSinceAccess = DateTimeOffset.UtcNow - lastAccessed
-        Assert.True(timeSinceAccess.TotalSeconds < 5.0)
+        Assert.True(result.IsNone)  // Nothing was stored
+    finally
+        cleanup config
+}
+
+[<Fact>]
+let ``TryLoadCached returns None for empty inputs`` () = task {
+    let config = createTempCacheConfig()
+    try
+        let manager = CacheManager(config) :> ICacheManager
+
+        let! result = manager.TryLoadCached([])
+
+        Assert.True(result.IsNone)  // No inputs = non-cacheable
     finally
         cleanup config
 }
@@ -113,24 +107,25 @@ let ``Cleanup removes old entries`` () = task {
     let config = { createTempCacheConfig() with MaxAge = TimeSpan.Zero }
     try
         let manager = CacheManager(config)
-        let key = TestKey("old-entry")
+        let managerInterface = manager :> ICacheManager
+        let inputs = [TestArtifact("input", false) :> IArtifact]
+        let output = TestArtifact("output-value", true) :> IArtifact
 
-        do! manager.WriteEntry(key)
-        let cacheDir = manager.GetCacheDirectory(key)
-
-        // Verify entry exists
-        Assert.True(Directory.Exists(cacheDir.Value))
+        do! managerInterface.Store(inputs, output)
 
         // Small delay to ensure entry is "old" (MaxAge is zero)
-        do! System.Threading.Tasks.Task.Delay(10)
+        do! Task.Delay(10)
 
         // Run cleanup
         let! result = manager.Cleanup(false)
 
         // Verify entry was removed
-        Assert.False(Directory.Exists(cacheDir.Value))
         Assert.Equal(1, result.EntriesRemoved)
         Assert.True(result.BytesFreed > 0L)
+
+        // Verify cache is empty
+        let! cached = managerInterface.TryLoadCached(inputs)
+        Assert.True(cached.IsNone)
     finally
         cleanup config
 }
@@ -140,16 +135,16 @@ let ``Cleanup keeps recent entries`` () = task {
     let config = { createTempCacheConfig() with MaxAge = TimeSpan.FromDays(1.0) }
     try
         let manager = CacheManager(config)
-        let key = TestKey("recent-entry")
+        let managerInterface = manager :> ICacheManager
+        let inputs = [TestArtifact("input", false) :> IArtifact]
+        let output = TestArtifact("output-value", true) :> IArtifact
 
-        do! manager.WriteEntry(key)
-        let cacheDir = manager.GetCacheDirectory(key)
+        do! managerInterface.Store(inputs, output)
 
         // Run cleanup
         let! result = manager.Cleanup(false)
 
         // Verify entry still exists (it's recent)
-        Assert.True(Directory.Exists(cacheDir.Value))
         Assert.Equal(0, result.EntriesRemoved)
         Assert.Equal(0L, result.BytesFreed)
     finally

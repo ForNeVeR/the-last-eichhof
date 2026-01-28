@@ -10,14 +10,14 @@
         <Compile Include="Hash.fs" />
         <Compile Include="Reporter.fs" />
         <Compile Include="CacheConfig.fs" />
-        <Compile Include="CacheKey.fs" />
-        <Compile Include="CacheManager.fs" />
-        <Compile Include="Dependency.fs" />
-        <Compile Include="Target.fs" />
+        <Compile Include="Abstractions.fs" />
         <Compile Include="BuildContext.fs" />
         <Compile Include="BuildTask.fs" />
+        <Compile Include="Artifacts.fs" />
+        <Compile Include="CacheManager.fs" />
+        <Compile Include="TaskExecutor.fs" />
         <Compile Include="BuildSystem.fs" />
-        <Compile Include="TargetResults.fs" />
+        <Compile Include="Tasks.fs" />
     </ItemGroup>
 
     <ItemGroup>
