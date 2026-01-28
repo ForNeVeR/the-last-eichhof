@@ -8,8 +8,7 @@
     <ItemGroup>
         <Compile Include="CacheKeyTests.fs" />
         <Compile Include="CacheManagerTests.fs" />
-        <Compile Include="DependencyTests.fs" />
-        <Compile Include="BuildSystemExecutionTests.fs" />
+        <Compile Include="TaskExecutorTests.fs" />
     </ItemGroup>
 
     <ItemGroup>
