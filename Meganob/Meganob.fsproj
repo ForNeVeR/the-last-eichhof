@@ -15,6 +15,7 @@
         <Compile Include="Dependency.fs" />
         <Compile Include="Target.fs" />
         <Compile Include="BuildContext.fs" />
+        <Compile Include="BuildTask.fs" />
         <Compile Include="BuildSystem.fs" />
         <Compile Include="TargetResults.fs" />
     </ItemGroup>
