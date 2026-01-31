@@ -31,7 +31,6 @@ type internal CacheManager(config: CacheConfig) =
                 return Some hash
             }
 
-
     let getCacheDirectory (cacheKeyHash: string): AbsolutePath =
         config.CacheFolder / cacheKeyHash
 
