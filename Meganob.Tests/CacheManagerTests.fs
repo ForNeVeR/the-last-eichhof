@@ -34,9 +34,20 @@ type TestArtifact(value: string, cacheable: bool) =
 
 let createTempCacheConfig () =
     let tempDir = Path.Combine(Path.GetTempPath(), $"meganob-test-{Guid.NewGuid()}")
+    let registry = ArtifactTypeRegistry.createDefault()
+    // Register TestArtifact for existing tests
+    registry.Register("TestArtifact", fun cacheDir -> task {
+        let filePath = cacheDir / "test.txt"
+        if filePath.ExistsFile() then
+            let! content = filePath.ReadAllTextAsync()
+            return Some (TestArtifact(content, true) :> IArtifact)
+        else
+            return None
+    })
     {
         CacheFolder = AbsolutePath(tempDir)
         MaxAge = TimeSpan.FromDays(15.0)
+        ArtifactRegistry = registry
     }
 
 let cleanup (config: CacheConfig) =
@@ -162,6 +173,142 @@ let ``Cleanup handles empty cache folder gracefully`` () = task {
 
         Assert.Equal(0, result.EntriesRemoved)
         Assert.Equal(0L, result.BytesFreed)
+    finally
+        cleanup config
+}
+
+[<Fact>]
+let ``FileResult can be stored and loaded from cache`` () = task {
+    let config = createTempCacheConfig()
+    try
+        let manager = CacheManager(config) :> ICacheManager
+        let inputs = [TestArtifact("file-input", false) :> IArtifact]
+
+        // Create a temp file to use as FileResult
+        let tempFile = AbsolutePath(Path.Combine(Path.GetTempPath(), $"test-file-{Guid.NewGuid()}.txt"))
+        do! tempFile.WriteAllTextAsync "file content"
+
+        try
+            let output = FileResult(tempFile) :> IArtifact
+            do! manager.Store(inputs, output)
+
+            let! result = manager.TryLoadCached(inputs)
+
+            Assert.True(result.IsSome)
+            Assert.IsType<FileResult>(result.Value) |> ignore
+        finally
+            if tempFile.ExistsFile() then File.Delete(tempFile.Value)
+    finally
+        cleanup config
+}
+
+[<Fact>]
+let ``DirectoryResult can be stored and loaded from cache`` () = task {
+    let config = createTempCacheConfig()
+    try
+        let manager = CacheManager(config) :> ICacheManager
+        let inputs = [TestArtifact("dir-input", false) :> IArtifact]
+
+        // Create a temp directory with a file
+        let tempDir = AbsolutePath(Path.Combine(Path.GetTempPath(), $"test-dir-{Guid.NewGuid()}"))
+        Directory.CreateDirectory(tempDir.Value) |> ignore
+        let testFile = tempDir / "testfile.txt"
+        do! testFile.WriteAllTextAsync "directory content"
+
+        try
+            let output = DirectoryResult(tempDir) :> IArtifact
+            do! manager.Store(inputs, output)
+
+            let! result = manager.TryLoadCached(inputs)
+
+            Assert.True(result.IsSome)
+            Assert.IsType<DirectoryResult>(result.Value) |> ignore
+        finally
+            if tempDir.ExistsDirectory() then Directory.Delete(tempDir.Value, true)
+    finally
+        cleanup config
+}
+
+[<Fact>]
+let ``Cache entries without ArtifactType are treated as cache miss`` () = task {
+    let config = createTempCacheConfig()
+    try
+        let manager = CacheManager(config) :> ICacheManager
+        let inputs = [TestArtifact("old-input", false) :> IArtifact]
+
+        // Manually create an old-style cache entry without ArtifactType
+        let! inputHash = CacheKey.ComputeHash [TestArtifact("old-input", false) :> IArtifact]
+        let cacheDir = config.CacheFolder / inputHash
+        Directory.CreateDirectory(cacheDir.Value) |> ignore
+        let metadataPath = cacheDir / "cache.json"
+        let oldStyleJson = """{"CacheKeyHash": "test", "LastAccessed": "2024-01-01T00:00:00Z"}"""
+        do! metadataPath.WriteAllTextAsync oldStyleJson
+
+        // Also create a test file so there's cached data
+        let testFile = cacheDir / "test.txt"
+        do! testFile.WriteAllTextAsync "cached content"
+
+        let! result = manager.TryLoadCached(inputs)
+
+        // Should be cache miss since ArtifactType is missing
+        Assert.True(result.IsNone)
+    finally
+        cleanup config
+}
+
+// Custom artifact type for testing custom registration
+type CustomArtifact(data: string) =
+    member _.Data = data
+
+    interface IArtifact with
+        member _.GetContentHash() = Task.FromResult (CacheKey.ComputeCombinedHash [data])
+        member _.CacheData = Some { new ICacheable with
+            member _.StoreTo(cacheDir) = task {
+                let filePath = cacheDir / "custom.dat"
+                do! filePath.WriteAllTextAsync data
+            }
+            member _.LoadFrom(cacheDir) = task {
+                let filePath = cacheDir / "custom.dat"
+                if filePath.ExistsFile() then
+                    let! content = filePath.ReadAllTextAsync()
+                    return Some (CustomArtifact(content) :> IArtifact)
+                else
+                    return None
+            }
+        }
+
+[<Fact>]
+let ``Custom artifact types can be registered and cached`` () = task {
+    let tempDir = Path.Combine(Path.GetTempPath(), $"meganob-test-{Guid.NewGuid()}")
+    let registry = ArtifactTypeRegistry.createDefault()
+
+    // Register custom artifact type
+    registry.Register("CustomArtifact", fun cacheDir -> task {
+        let filePath = cacheDir / "custom.dat"
+        if filePath.ExistsFile() then
+            let! content = filePath.ReadAllTextAsync()
+            return Some (CustomArtifact(content) :> IArtifact)
+        else
+            return None
+    })
+
+    let config = {
+        CacheFolder = AbsolutePath(tempDir)
+        MaxAge = TimeSpan.FromDays(15.0)
+        ArtifactRegistry = registry
+    }
+    try
+        let manager = CacheManager(config) :> ICacheManager
+        let inputs = [TestArtifact("custom-input", false) :> IArtifact]
+        let output = CustomArtifact("custom data") :> IArtifact
+
+        do! manager.Store(inputs, output)
+        let! result = manager.TryLoadCached(inputs)
+
+        Assert.True(result.IsSome)
+        Assert.IsType<CustomArtifact>(result.Value) |> ignore
+        let loaded = result.Value :?> CustomArtifact
+        Assert.Equal("custom data", loaded.Data)
     finally
         cleanup config
 }

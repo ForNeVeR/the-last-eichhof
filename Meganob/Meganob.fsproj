@@ -9,11 +9,12 @@
         <Compile Include="AssemblyInfo.fs" />
         <Compile Include="Hash.fs" />
         <Compile Include="Reporter.fs" />
-        <Compile Include="CacheConfig.fs" />
         <Compile Include="Abstractions.fs" />
         <Compile Include="BuildContext.fs" />
         <Compile Include="BuildTask.fs" />
         <Compile Include="Artifacts.fs" />
+        <Compile Include="ArtifactTypeRegistry.fs" />
+        <Compile Include="CacheConfig.fs" />
         <Compile Include="CacheManager.fs" />
         <Compile Include="TaskExecutor.fs" />
         <Compile Include="BuildSystem.fs" />
