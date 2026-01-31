@@ -25,10 +25,10 @@ let private FormatBytes(bytes: int64): string =
 
 let private DefaultTask: string = "build"
 
-let ExecuteTask(rootTask: BuildTask, reporter: IReporter): Task<IArtifact> =
+let internal ExecuteTask(rootTask: BuildTask, reporter: IReporter): Task<IArtifact> =
     let nullCache = { new ICacheManager with
-        member _.TryLoadCached _ = Task.FromResult None
-        member _.Store(_, _) = Task.CompletedTask
+        member _.TryLoadCached(_, _) = Task.FromResult None
+        member _.Store(_, _, _) = Task.CompletedTask
     }
     let context = { Reporter = reporter; Cache = nullCache }
     TaskExecutor.Execute(context, rootTask)

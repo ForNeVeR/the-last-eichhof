@@ -14,26 +14,12 @@ type ValueArtifact<'T>(value: 'T, hash: Hash) =
 
     interface IArtifact with
         member _.GetContentHash() = Task.FromResult hash
-        member _.CacheData = None  // Values aren't stored, just hashed
 
 type FileResult(path: AbsolutePath) =
     member _.Path = path
 
     interface IArtifact with
         member _.GetContentHash() = FileResult.CalculateHash path
-        member _.CacheData = Some { new ICacheable with
-            member _.StoreTo(cacheDir) = task {
-                let destPath = cacheDir / path.FileName
-                path.Copy(destPath)
-            }
-            member _.LoadFrom(cacheDir) = task {
-                let cached = cacheDir / path.FileName
-                if cached.ExistsFile() then
-                    return Some (FileResult(cached) :> IArtifact)
-                else
-                    return None
-            }
-        }
 
     static member internal CalculateHash(path: AbsolutePath) = task {
         use stream = path.OpenRead()
@@ -54,6 +40,24 @@ type FileResult(path: AbsolutePath) =
         return Sha256(Convert.ToHexStringLower bytes)
     }
 
+module FileResult =
+    /// Create cache data for tasks that output a single file
+    let CacheData(version: string): TaskCacheData = {
+        Version = version
+        StoreTo = fun cacheDir output ->
+            let file = (output :?> FileResult).Path
+            file.Copy(cacheDir / file.FileName)
+            Task.CompletedTask
+        LoadFrom = fun cacheDir -> task {
+            let files = Directory.GetFiles(cacheDir.Value)
+                        |> Array.filter (fun f -> Path.GetFileName(f) <> "cache.json")
+            if files.Length > 0 then
+                return Some (FileResult(AbsolutePath(files[0])) :> IArtifact)
+            else
+                return None
+        }
+    }
+
 type DirectoryResult(directory: AbsolutePath) =
     member _.Path = directory
 
@@ -62,19 +66,29 @@ type DirectoryResult(directory: AbsolutePath) =
             let allFiles = directory.GetFiles "*" |> Seq.map AbsolutePath
             return! FileResult.CalculateHash allFiles
         }
-        member _.CacheData = Some { new ICacheable with
-            member _.StoreTo(cacheDir) = task {
-                let files = directory.GetFiles "*" |> Seq.map AbsolutePath
-                let cacheTarget = cacheDir / "data"
-                for file in files do
-                    let relativePath = file.RelativeTo directory
-                    let destPath = cacheTarget / relativePath.FileName
-                    destPath.Parent.Value.CreateDirectory()
-                    (AbsolutePath file).Copy(destPath)
-            }
-            member _.LoadFrom(cacheDir) =
-                Task.FromResult(Some <| DirectoryResult(cacheDir / "data"))
+
+module DirectoryResult =
+    /// Create cache data for tasks that output a directory
+    let CacheData(version: string): TaskCacheData = {
+        Version = version
+        StoreTo = fun cacheDir output ->
+            let dir = (output :?> DirectoryResult).Path
+            let files = dir.GetFiles "*" |> Seq.map AbsolutePath
+            let cacheTarget = cacheDir / "data"
+            for file in files do
+                let relativePath = file.RelativeTo dir
+                let destPath = cacheTarget / relativePath.FileName
+                destPath.Parent.Value.CreateDirectory()
+                file.Copy(destPath)
+            Task.CompletedTask
+        LoadFrom = fun cacheDir -> task {
+            let dataDir = cacheDir / "data"
+            if dataDir.ExistsDirectory() then
+                return Some (DirectoryResult(dataDir) :> IArtifact)
+            else
+                return None
         }
+    }
 
 // Artifact for files, non-cacheable.
 type InputFileSet(files: ImmutableArray<AbsolutePath>) =
@@ -82,7 +96,6 @@ type InputFileSet(files: ImmutableArray<AbsolutePath>) =
 
     interface IArtifact with
         member _.GetContentHash() = FileResult.CalculateHash files
-        member _.CacheData = None // no caching of the file sets
 
 /// Artifact for download specification (URL + expected hash).
 type DownloadInput(uri: Uri, expectedHash: Hash) =
@@ -100,4 +113,3 @@ type DownloadInput(uri: Uri, expectedHash: Hash) =
                     expectedHash.ToHexString()
                 ]
             )
-        member _.CacheData = None

@@ -16,6 +16,7 @@ let DownloadFile (uri: Uri) (hash: Hash): BuildTask =
         Id = Guid.NewGuid()
         Name = $"Input spec for \"{fileName}\""
         Inputs = ImmutableArray.Empty
+        CacheData = None
         Execute = fun _ -> Task.FromResult <| DownloadInput(uri, hash)
     }
 
@@ -34,6 +35,7 @@ let DownloadFile (uri: Uri) (hash: Hash): BuildTask =
         Id = Guid.NewGuid()
         Name = "Download file"
         Inputs = ImmutableArray.Create inputTask
+        CacheData = Some (FileResult.CacheData "download.v1")
         Execute = fun(context, _) -> task {
             let reporter = context.Reporter
             let stopwatch = Stopwatch.StartNew()
@@ -88,6 +90,7 @@ let ExtractArchive(archive: BuildTask): BuildTask = {
     Id = Guid.NewGuid()
     Name = "Extract archive"
     Inputs = ImmutableArray.Create(archive)
+    CacheData = Some (DirectoryResult.CacheData "extract.v1")
     Execute = fun (_, inputs) -> task {
         let input = inputs |> Seq.exactlyOne :?> FileResult
         let destination = Temporary.CreateTempFolder()
@@ -100,6 +103,7 @@ let CollectFiles (sourceFolder: AbsolutePath) (patterns: LocalPathPattern seq): 
     Id = Guid.NewGuid()
     Name = "Collect source files"
     Inputs = ImmutableArray.Empty
+    CacheData = None  // Non-cacheable: always reads from disk
     Execute = fun _ -> task {
         let files =
             patterns

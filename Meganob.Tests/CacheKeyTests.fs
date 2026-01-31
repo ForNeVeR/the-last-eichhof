@@ -7,7 +7,6 @@ open Meganob
 type TestArtifact(value: string) =
     interface IArtifact with
         member _.GetContentHash() = Task.FromResult <| CacheKey.ComputeCombinedHash [value]
-        member _.CacheData = None
 
 [<Fact>]
 let ``ComputeHash returns deterministic hash for same input``(): Task = task {

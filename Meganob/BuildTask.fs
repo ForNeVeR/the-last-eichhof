@@ -36,6 +36,7 @@ type BuildTask =
         Id: Guid
         Name: string
         Inputs: ImmutableArray<BuildTask>
+        CacheData: TaskCacheData option  // None = non-cacheable
         Execute: BuildContext * IArtifact seq -> Task<IArtifact>
     }
 
