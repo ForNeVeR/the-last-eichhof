@@ -12,7 +12,6 @@ type TestOutput(value: int) =
 
     interface IArtifact with
         member _.GetContentHash() = Task.FromResult <| CacheKey.ComputeCombinedHash [string value]
-        member _.CacheData = None
 
 let createMockReporter() =
     { new IReporter with
@@ -26,6 +25,7 @@ let createTask(name: string, inputs: BuildTask seq, execute: IArtifact seq -> Ta
         Id = Guid.NewGuid()
         Name = name
         Inputs = inputs.ToImmutableArray()
+        CacheData = None
         Execute = fun (_, inputs) -> execute inputs
     }
 

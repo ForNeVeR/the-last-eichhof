@@ -3,19 +3,24 @@
 open System.Threading.Tasks
 open TruePath
 
-/// For artifacts that can be stored/loaded from cache directory
 [<Interface>]
-type ICacheable =
-    abstract member StoreTo: cacheDir: AbsolutePath -> Task
-    abstract member LoadFrom: cacheDir: AbsolutePath -> Task<IArtifact option>
-
-and [<Interface>] IArtifact =
+type IArtifact =
     abstract member GetContentHash: unit -> Task<Hash>
-    abstract member CacheData: ICacheable option  // None = hash-only, not storable
+
+/// Cache configuration for a build task
+type TaskCacheData = {
+    /// Version string included in cache key (e.g., "build.v1")
+    /// Different versions = different cache entries even with same inputs
+    Version: string
+    /// Store the task output to cache directory
+    StoreTo: AbsolutePath -> IArtifact -> Task
+    /// Load the task output from cache directory
+    LoadFrom: AbsolutePath -> Task<IArtifact option>
+}
 
 [<Interface>]
 type ICacheManager =
-    /// Try to load cached output. Cache key computed from input hashes.
-    abstract member TryLoadCached: inputs: IArtifact seq -> Task<IArtifact option>
-    /// Store output to cache. Only stores if output.CacheData.IsSome.
-    abstract member Store: inputs: IArtifact seq * output: IArtifact -> Task
+    /// Try to load cached output. Cache key computed from input hashes + cacheData.Version
+    abstract member TryLoadCached: inputs: IArtifact seq * cacheData: TaskCacheData -> Task<IArtifact option>
+    /// Store output to cache using cacheData.StoreTo
+    abstract member Store: inputs: IArtifact seq * cacheData: TaskCacheData * output: IArtifact -> Task

@@ -25,6 +25,7 @@ let dosBoxVersionTask: BuildTask = {
     Id = Guid.NewGuid()
     Name = "DOSBox-X version"
     Inputs = ImmutableArray.Empty
+    CacheData = None  // Non-cacheable: always checks current version
     Execute = fun _ -> task {
         let! version = DosBoxX.GetVersion()
         let hash = CacheKey.ComputeCombinedHash [version]
@@ -44,6 +45,7 @@ let build: BuildTask = {
     Id = Guid.NewGuid()
     Name = "build"
     Inputs = ImmutableArray.Create(dosBoxVersionTask, bcpp, collectSources)
+    CacheData = Some (FileResult.CacheData "build.v1")
     Execute = fun (context, inputs) -> task {
         let [|_dosBox; bcpp; sources|] = inputs |> Seq.toArray
 

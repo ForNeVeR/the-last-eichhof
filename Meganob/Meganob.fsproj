@@ -13,7 +13,6 @@
         <Compile Include="BuildContext.fs" />
         <Compile Include="BuildTask.fs" />
         <Compile Include="Artifacts.fs" />
-        <Compile Include="ArtifactTypeRegistry.fs" />
         <Compile Include="CacheConfig.fs" />
         <Compile Include="CacheManager.fs" />
         <Compile Include="TaskExecutor.fs" />

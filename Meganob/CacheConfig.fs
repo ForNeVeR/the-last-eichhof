@@ -6,7 +6,6 @@ open TruePath
 type CacheConfig = {
     CacheFolder: AbsolutePath
     MaxAge: TimeSpan
-    ArtifactRegistry: ArtifactTypeRegistry
 }
 
 module CacheConfig =
@@ -17,5 +16,4 @@ module CacheConfig =
             | None -> AbsolutePath(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData))
                       / "Meganob" / "cache"
         MaxAge = TimeSpan.FromDays 15.0
-        ArtifactRegistry = ArtifactTypeRegistry.createDefault()
     }

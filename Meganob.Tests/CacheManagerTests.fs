@@ -8,46 +8,35 @@ open TruePath
 open TruePath.SystemIo
 open Meganob
 
-type TestArtifact(value: string, cacheable: bool) =
+type TestArtifact(value: string) =
     let hash = CacheKey.ComputeCombinedHash [value]
+    member _.Value = value
 
     interface IArtifact with
         member _.GetContentHash() = Task.FromResult hash
-        member _.CacheData =
-            if cacheable then
-                Some { new ICacheable with
-                    member _.StoreTo(cacheDir) = task {
-                        let filePath = cacheDir / "test.txt"
-                        do! filePath.WriteAllTextAsync value
-                    }
-                    member _.LoadFrom(cacheDir) = task {
-                        let filePath = cacheDir / "test.txt"
-                        if filePath.ExistsFile() then
-                            let! content = filePath.ReadAllTextAsync()
-                            return Some (TestArtifact(content, true) :> IArtifact)
-                        else
-                            return None
-                    }
-                }
+
+module TestArtifact =
+    let CacheData(version: string): TaskCacheData = {
+        Version = version
+        StoreTo = fun cacheDir output ->
+            let artifact = output :?> TestArtifact
+            let filePath = cacheDir / "test.txt"
+            filePath.WriteAllTextAsync artifact.Value
+        LoadFrom = fun cacheDir -> task {
+            let filePath = cacheDir / "test.txt"
+            if filePath.ExistsFile() then
+                let! content = filePath.ReadAllTextAsync()
+                return Some (TestArtifact(content) :> IArtifact)
             else
-                None
+                return None
+        }
+    }
 
 let createTempCacheConfig () =
     let tempDir = Path.Combine(Path.GetTempPath(), $"meganob-test-{Guid.NewGuid()}")
-    let registry = ArtifactTypeRegistry.createDefault()
-    // Register TestArtifact for existing tests
-    registry.Register("TestArtifact", fun cacheDir -> task {
-        let filePath = cacheDir / "test.txt"
-        if filePath.ExistsFile() then
-            let! content = filePath.ReadAllTextAsync()
-            return Some (TestArtifact(content, true) :> IArtifact)
-        else
-            return None
-    })
     {
         CacheFolder = AbsolutePath(tempDir)
         MaxAge = TimeSpan.FromDays(15.0)
-        ArtifactRegistry = registry
     }
 
 let cleanup (config: CacheConfig) =
@@ -59,9 +48,10 @@ let ``TryLoadCached returns None when cache is empty`` () = task {
     let config = createTempCacheConfig()
     try
         let manager = CacheManager(config) :> ICacheManager
-        let inputs = [TestArtifact("input", false) :> IArtifact]
+        let inputs = [TestArtifact("input") :> IArtifact]
+        let cacheData = TestArtifact.CacheData "test.v1"
 
-        let! result = manager.TryLoadCached(inputs)
+        let! result = manager.TryLoadCached(inputs, cacheData)
 
         Assert.True(result.IsNone)
     finally
@@ -73,11 +63,12 @@ let ``Store and TryLoadCached work together`` () = task {
     let config = createTempCacheConfig()
     try
         let manager = CacheManager(config) :> ICacheManager
-        let inputs = [TestArtifact("input", false) :> IArtifact]
-        let output = TestArtifact("output-value", true) :> IArtifact
+        let inputs = [TestArtifact("input") :> IArtifact]
+        let output = TestArtifact("output-value") :> IArtifact
+        let cacheData = TestArtifact.CacheData "test.v1"
 
-        do! manager.Store(inputs, output)
-        let! result = manager.TryLoadCached(inputs)
+        do! manager.Store(inputs, cacheData, output)
+        let! result = manager.TryLoadCached(inputs, cacheData)
 
         Assert.True(result.IsSome)
     finally
@@ -85,17 +76,25 @@ let ``Store and TryLoadCached work together`` () = task {
 }
 
 [<Fact>]
-let ``Store does nothing for non-cacheable outputs`` () = task {
+let ``Different versions create different cache entries`` () = task {
     let config = createTempCacheConfig()
     try
         let manager = CacheManager(config) :> ICacheManager
-        let inputs = [TestArtifact("input", false) :> IArtifact]
-        let output = TestArtifact("output-value", false) :> IArtifact  // Not cacheable
+        let inputs = [TestArtifact("input") :> IArtifact]
+        let output = TestArtifact("output-value") :> IArtifact
+        let cacheDataV1 = TestArtifact.CacheData "test.v1"
+        let cacheDataV2 = TestArtifact.CacheData "test.v2"
 
-        do! manager.Store(inputs, output)
-        let! result = manager.TryLoadCached(inputs)
+        // Store with v1
+        do! manager.Store(inputs, cacheDataV1, output)
 
-        Assert.True(result.IsNone)  // Nothing was stored
+        // Load with v2 should be cache miss
+        let! resultV2 = manager.TryLoadCached(inputs, cacheDataV2)
+        Assert.True(resultV2.IsNone)
+
+        // Load with v1 should be cache hit
+        let! resultV1 = manager.TryLoadCached(inputs, cacheDataV1)
+        Assert.True(resultV1.IsSome)
     finally
         cleanup config
 }
@@ -105,8 +104,9 @@ let ``TryLoadCached returns None for empty inputs`` () = task {
     let config = createTempCacheConfig()
     try
         let manager = CacheManager(config) :> ICacheManager
+        let cacheData = TestArtifact.CacheData "test.v1"
 
-        let! result = manager.TryLoadCached([])
+        let! result = manager.TryLoadCached([], cacheData)
 
         Assert.True(result.IsNone)  // No inputs = non-cacheable
     finally
@@ -119,10 +119,11 @@ let ``Cleanup removes old entries`` () = task {
     try
         let manager = CacheManager(config)
         let managerInterface = manager :> ICacheManager
-        let inputs = [TestArtifact("input", false) :> IArtifact]
-        let output = TestArtifact("output-value", true) :> IArtifact
+        let inputs = [TestArtifact("input") :> IArtifact]
+        let output = TestArtifact("output-value") :> IArtifact
+        let cacheData = TestArtifact.CacheData "test.v1"
 
-        do! managerInterface.Store(inputs, output)
+        do! managerInterface.Store(inputs, cacheData, output)
 
         // Small delay to ensure entry is "old" (MaxAge is zero)
         do! Task.Delay(10)
@@ -135,7 +136,7 @@ let ``Cleanup removes old entries`` () = task {
         Assert.True(result.BytesFreed > 0L)
 
         // Verify cache is empty
-        let! cached = managerInterface.TryLoadCached(inputs)
+        let! cached = managerInterface.TryLoadCached(inputs, cacheData)
         Assert.True(cached.IsNone)
     finally
         cleanup config
@@ -147,10 +148,11 @@ let ``Cleanup keeps recent entries`` () = task {
     try
         let manager = CacheManager(config)
         let managerInterface = manager :> ICacheManager
-        let inputs = [TestArtifact("input", false) :> IArtifact]
-        let output = TestArtifact("output-value", true) :> IArtifact
+        let inputs = [TestArtifact("input") :> IArtifact]
+        let output = TestArtifact("output-value") :> IArtifact
+        let cacheData = TestArtifact.CacheData "test.v1"
 
-        do! managerInterface.Store(inputs, output)
+        do! managerInterface.Store(inputs, cacheData, output)
 
         // Run cleanup
         let! result = manager.Cleanup(false)
@@ -182,7 +184,8 @@ let ``FileResult can be stored and loaded from cache`` () = task {
     let config = createTempCacheConfig()
     try
         let manager = CacheManager(config) :> ICacheManager
-        let inputs = [TestArtifact("file-input", false) :> IArtifact]
+        let inputs = [TestArtifact("file-input") :> IArtifact]
+        let cacheData = FileResult.CacheData "file.v1"
 
         // Create a temp file to use as FileResult
         let tempFile = AbsolutePath(Path.Combine(Path.GetTempPath(), $"test-file-{Guid.NewGuid()}.txt"))
@@ -190,9 +193,9 @@ let ``FileResult can be stored and loaded from cache`` () = task {
 
         try
             let output = FileResult(tempFile) :> IArtifact
-            do! manager.Store(inputs, output)
+            do! manager.Store(inputs, cacheData, output)
 
-            let! result = manager.TryLoadCached(inputs)
+            let! result = manager.TryLoadCached(inputs, cacheData)
 
             Assert.True(result.IsSome)
             Assert.IsType<FileResult>(result.Value) |> ignore
@@ -207,7 +210,8 @@ let ``DirectoryResult can be stored and loaded from cache`` () = task {
     let config = createTempCacheConfig()
     try
         let manager = CacheManager(config) :> ICacheManager
-        let inputs = [TestArtifact("dir-input", false) :> IArtifact]
+        let inputs = [TestArtifact("dir-input") :> IArtifact]
+        let cacheData = DirectoryResult.CacheData "dir.v1"
 
         // Create a temp directory with a file
         let tempDir = AbsolutePath(Path.Combine(Path.GetTempPath(), $"test-dir-{Guid.NewGuid()}"))
@@ -217,9 +221,9 @@ let ``DirectoryResult can be stored and loaded from cache`` () = task {
 
         try
             let output = DirectoryResult(tempDir) :> IArtifact
-            do! manager.Store(inputs, output)
+            do! manager.Store(inputs, cacheData, output)
 
-            let! result = manager.TryLoadCached(inputs)
+            let! result = manager.TryLoadCached(inputs, cacheData)
 
             Assert.True(result.IsSome)
             Assert.IsType<DirectoryResult>(result.Value) |> ignore
@@ -229,81 +233,41 @@ let ``DirectoryResult can be stored and loaded from cache`` () = task {
         cleanup config
 }
 
-[<Fact>]
-let ``Cache entries without ArtifactType are treated as cache miss`` () = task {
-    let config = createTempCacheConfig()
-    try
-        let manager = CacheManager(config) :> ICacheManager
-        let inputs = [TestArtifact("old-input", false) :> IArtifact]
-
-        // Manually create an old-style cache entry without ArtifactType
-        let! inputHash = CacheKey.ComputeHash [TestArtifact("old-input", false) :> IArtifact]
-        let cacheDir = config.CacheFolder / inputHash
-        Directory.CreateDirectory(cacheDir.Value) |> ignore
-        let metadataPath = cacheDir / "cache.json"
-        let oldStyleJson = """{"CacheKeyHash": "test", "LastAccessed": "2024-01-01T00:00:00Z"}"""
-        do! metadataPath.WriteAllTextAsync oldStyleJson
-
-        // Also create a test file so there's cached data
-        let testFile = cacheDir / "test.txt"
-        do! testFile.WriteAllTextAsync "cached content"
-
-        let! result = manager.TryLoadCached(inputs)
-
-        // Should be cache miss since ArtifactType is missing
-        Assert.True(result.IsNone)
-    finally
-        cleanup config
-}
-
-// Custom artifact type for testing custom registration
+// Custom artifact type for testing custom cache data
 type CustomArtifact(data: string) =
     member _.Data = data
 
     interface IArtifact with
         member _.GetContentHash() = Task.FromResult (CacheKey.ComputeCombinedHash [data])
-        member _.CacheData = Some { new ICacheable with
-            member _.StoreTo(cacheDir) = task {
-                let filePath = cacheDir / "custom.dat"
-                do! filePath.WriteAllTextAsync data
-            }
-            member _.LoadFrom(cacheDir) = task {
-                let filePath = cacheDir / "custom.dat"
-                if filePath.ExistsFile() then
-                    let! content = filePath.ReadAllTextAsync()
-                    return Some (CustomArtifact(content) :> IArtifact)
-                else
-                    return None
-            }
+
+module CustomArtifact =
+    let CacheData(version: string): TaskCacheData = {
+        Version = version
+        StoreTo = fun cacheDir output ->
+            let artifact = output :?> CustomArtifact
+            let filePath = cacheDir / "custom.dat"
+            filePath.WriteAllTextAsync artifact.Data
+        LoadFrom = fun cacheDir -> task {
+            let filePath = cacheDir / "custom.dat"
+            if filePath.ExistsFile() then
+                let! content = filePath.ReadAllTextAsync()
+                return Some (CustomArtifact(content) :> IArtifact)
+            else
+                return None
         }
+    }
 
 [<Fact>]
-let ``Custom artifact types can be registered and cached`` () = task {
-    let tempDir = Path.Combine(Path.GetTempPath(), $"meganob-test-{Guid.NewGuid()}")
-    let registry = ArtifactTypeRegistry.createDefault()
-
-    // Register custom artifact type
-    registry.Register("CustomArtifact", fun cacheDir -> task {
-        let filePath = cacheDir / "custom.dat"
-        if filePath.ExistsFile() then
-            let! content = filePath.ReadAllTextAsync()
-            return Some (CustomArtifact(content) :> IArtifact)
-        else
-            return None
-    })
-
-    let config = {
-        CacheFolder = AbsolutePath(tempDir)
-        MaxAge = TimeSpan.FromDays(15.0)
-        ArtifactRegistry = registry
-    }
+let ``Custom artifact types can be cached`` () = task {
+    let config = createTempCacheConfig()
     try
         let manager = CacheManager(config) :> ICacheManager
-        let inputs = [TestArtifact("custom-input", false) :> IArtifact]
+        let inputs = [TestArtifact("custom-input") :> IArtifact]
         let output = CustomArtifact("custom data") :> IArtifact
+        let cacheData = CustomArtifact.CacheData "custom.v1"
 
-        do! manager.Store(inputs, output)
-        let! result = manager.TryLoadCached(inputs)
+        do! manager.Store(inputs, cacheData, output)
+        let! result = manager.TryLoadCached(inputs, cacheData)
 
         Assert.True(result.IsSome)
         Assert.IsType<CustomArtifact>(result.Value) |> ignore

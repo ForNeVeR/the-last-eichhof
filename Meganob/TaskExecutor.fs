@@ -60,10 +60,13 @@ let Execute(context: BuildContext, rootTask: BuildTask): Task<IArtifact> =
             try
                 let inputValues = buildTask.Inputs |> Seq.map (fun input -> outputs[input]) |> Seq.toList
 
-                // Skip cache for tasks with no inputs (non-cacheable)
+                // Skip cache for tasks without cache data
                 let! cachedResult =
-                    if inputValues.IsEmpty then Task.FromResult None
-                    else context.Cache.TryLoadCached(inputValues) // TODO: At this point, we should know the task output type. Make loading from cache a task's responsibility? Or store a type designator in cache.json?
+                    match buildTask.CacheData with
+                    | None -> Task.FromResult None
+                    | Some cacheData ->
+                        if inputValues.IsEmpty then Task.FromResult None
+                        else context.Cache.TryLoadCached(inputValues, cacheData)
 
                 match cachedResult with
                 | Some cached ->
@@ -71,8 +74,10 @@ let Execute(context: BuildContext, rootTask: BuildTask): Task<IArtifact> =
                 | None ->
                     let! output = buildTask.Execute(context, inputValues)
                     outputs[buildTask] <- output
-                    if not inputValues.IsEmpty then
-                        do! context.Cache.Store(inputValues, output)
+                    match buildTask.CacheData with
+                    | Some cacheData when not inputValues.IsEmpty ->
+                        do! context.Cache.Store(inputValues, cacheData, output)
+                    | _ -> ()
 
                 lock inDegreeLock (fun () ->
                     completedCount <- completedCount + 1
