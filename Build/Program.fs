@@ -33,18 +33,18 @@ let dosBoxVersionTask: BuildTask = {
 }
 
 let borlandCppDownloadTask =
-        Tasks.DownloadFile
-            (Uri "https://archive.org/download/bcpp31/BCPP31.ZIP")
-            (Sha256 "CEAA8852DD2EE33AEDD471595051931BF96B44EFEE2AA2CD3706E41E38426F84")
+    Tasks.DownloadFile
+        (Uri "https://archive.org/download/bcpp31/BCPP31.ZIP")
+        (Sha256 "CEAA8852DD2EE33AEDD471595051931BF96B44EFEE2AA2CD3706E41E38426F84")
 let bcpp = Tasks.ExtractArchive borlandCppDownloadTask
 
 let collectSources = Tasks.CollectFiles sourceFolder [LocalPathPattern "*.PRJ"]
 
-let buildTask: BuildTask = {
+let build: BuildTask = {
     Id = Guid.NewGuid()
     Name = "build"
     Inputs = ImmutableArray.Create(dosBoxVersionTask, bcpp, collectSources)
-    Execute = fun (_, inputs) -> task {
+    Execute = fun (context, inputs) -> task {
         let [|_dosBox; bcpp; sources|] = inputs |> Seq.toArray
 
         let bcpp = bcpp :?> DirectoryResult
@@ -61,13 +61,16 @@ let buildTask: BuildTask = {
         | None -> return failwithf "Cannot find DOSBox-X executable."
         | Some dosBox ->
 
-        let! _output = DosBoxX.RunCommands(dosBox, [
-            $"MOUNT B \"%s{bcpp.Path.Value}\""
+        let reporter = context.Reporter
+        reporter.Status "Calling BC compiler in DOSBox-X"
+        let! output = DosBoxX.RunCommands(dosBox, [
+            $"MOUNT B \"%s{bcpp.Path.Value}\" -ro"
             $"MOUNT S \"%s{workDir.Value}\""
             @"SET PATH=B:\BIN;%PATH%"
-            @"CD /D S:\"
+            @"S:"
             @"BC BALLER.PRJ"
-        ], ignore)
+        ], reporter.Log)
+        reporter.Log $"# Compiler output:\n{output}"
 
         let baller = workDir / "BALLER.EXE"
         if not <| baller.ExistsFile() then
@@ -77,7 +80,7 @@ let buildTask: BuildTask = {
     }
 }
 
-let private tasks = [bcpp; buildTask]
+let private tasks = [bcpp; build ]
 
 [<EntryPoint>]
 let main(args: string[]): int =
