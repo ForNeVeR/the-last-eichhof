@@ -10,6 +10,7 @@ open TruePath.SystemIo
 type internal CacheEntry = {
     CacheKeyHash: string
     LastAccessed: DateTimeOffset
+    ArtifactType: string option
 }
 
 type CleanupResult = {
@@ -34,8 +35,13 @@ type internal CacheManager(config: CacheConfig) =
     let getCacheDirectory (cacheKeyHash: string): AbsolutePath =
         config.CacheFolder / cacheKeyHash
 
-    let ensureDirectoryExists (path: AbsolutePath) =
-        Directory.CreateDirectory(path.Value) |> ignore
+    let ensureCleanDirectory (path: AbsolutePath) =
+        // Clear any existing directory to handle old cache entries being replaced
+        if path.ExistsDirectory() then
+            eprintfn $"Warning: Replacing outdated cache entry at '%s{path.Value}'"
+            path.DeleteDirectoryRecursively()
+
+        path.CreateDirectory()
 
     let readEntry (cacheDir: AbsolutePath): Task<CacheEntry option> = task {
         let metadataPath = cacheDir / cacheMetadataFileName
@@ -44,9 +50,14 @@ type internal CacheManager(config: CacheConfig) =
                 let! json = metadataPath.ReadAllTextAsync()
                 let doc = JsonDocument.Parse(json)
                 let root = doc.RootElement
+                let artifactType =
+                    match root.TryGetProperty("ArtifactType") with
+                    | true, prop when prop.ValueKind <> JsonValueKind.Null -> Some (prop.GetString())
+                    | _ -> None
                 return Some {
                     CacheKeyHash = root.GetProperty("CacheKeyHash").GetString()
                     LastAccessed = root.GetProperty("LastAccessed").GetDateTimeOffset()
+                    ArtifactType = artifactType
                 }
             with
             | _ -> return None
@@ -54,12 +65,13 @@ type internal CacheManager(config: CacheConfig) =
             return None
     }
 
-    let writeEntryJson (metadataPath: AbsolutePath) (cacheKeyHash: string) (lastAccessed: DateTimeOffset): Task<unit> = task {
+    let writeEntryJson (metadataPath: AbsolutePath) (cacheKeyHash: string) (lastAccessed: DateTimeOffset) (artifactType: string): Task<unit> = task {
         use stream = new MemoryStream()
         use writer = new Utf8JsonWriter(stream, JsonWriterOptions(Indented = true))
         writer.WriteStartObject()
         writer.WriteString("CacheKeyHash", cacheKeyHash)
         writer.WriteString("LastAccessed", lastAccessed)
+        writer.WriteString("ArtifactType", artifactType)
         writer.WriteEndObject()
         do! writer.FlushAsync()
 
@@ -73,31 +85,28 @@ type internal CacheManager(config: CacheConfig) =
             | None -> return None  // Non-cacheable
             | Some cacheKeyHash ->
                 let cacheDir = getCacheDirectory cacheKeyHash
-                let metadataPath = cacheDir / cacheMetadataFileName
-                if metadataPath.ExistsFile() then
-                    // Try to load from cache
-                    let! entry = readEntry cacheDir
-                    match entry with
-                    | Some e ->
-                        // Try to find an artifact that can load from this cache
-                        // We need the artifact type to load. For now, try FileArtifact.
-                        // In practice, we'll need a way to know the artifact type.
-                        // For simplicity, check for files in the cache directory.
-                        let files = Directory.GetFiles(cacheDir.Value)
-                                    |> Array.filter (fun f -> Path.GetFileName(f) <> cacheMetadataFileName)
-                        if files.Length > 0 then
-                            // Update last accessed time
-                            do! writeEntryJson metadataPath e.CacheKeyHash DateTimeOffset.UtcNow
-                            // Return a placeholder - the actual loading depends on artifact type
-                            // For FileArtifact, we return the cached file
-                            let cachedFile = AbsolutePath(files[0])
-                            let hash = Sha256 e.CacheKeyHash  // Use cache key as placeholder hash
-                            return Some (FileResult(cachedFile) :> IArtifact)
-                        else
+                let! entry = readEntry cacheDir
+                match entry with
+                | Some e ->
+                    match e.ArtifactType with
+                    | Some artifactType ->
+                        match config.ArtifactRegistry.TryGetLoader(artifactType) with
+                        | Some loader ->
+                            let! loaded = loader cacheDir
+                            match loaded with
+                            | Some artifact ->
+                                // Update last accessed time
+                                let metadataPath = cacheDir / cacheMetadataFileName
+                                do! writeEntryJson metadataPath e.CacheKeyHash DateTimeOffset.UtcNow artifactType
+                                return Some artifact
+                            | None -> return None
+                        | None ->
+                            eprintfn $"Warning: Unknown artifact type '%s{artifactType}' in cache"
                             return None
-                    | None -> return None
-                else
-                    return None
+                    | None ->
+                        // Invalid cache entry without ArtifactType - treat as cache miss.
+                        return None
+                | None -> return None
         }
 
         member _.Store(inputs: IArtifact seq, output: IArtifact): Task = task {
@@ -107,11 +116,16 @@ type internal CacheManager(config: CacheConfig) =
                 match output.CacheData with
                 | None -> ()  // Output not storable
                 | Some cacheable ->
-                    let cacheDir = getCacheDirectory cacheKeyHash
-                    ensureDirectoryExists cacheDir
-                    do! cacheable.StoreTo(cacheDir)
-                    let metadataPath = cacheDir / cacheMetadataFileName
-                    do! writeEntryJson metadataPath cacheKeyHash DateTimeOffset.UtcNow
+                    match config.ArtifactRegistry.GetTypeName(output) with
+                    | Some artifactType ->
+                        let cacheDir = getCacheDirectory cacheKeyHash
+                        ensureCleanDirectory cacheDir
+                        do! cacheable.StoreTo(cacheDir)
+                        let metadataPath = cacheDir / cacheMetadataFileName
+                        do! writeEntryJson metadataPath cacheKeyHash DateTimeOffset.UtcNow artifactType
+                    | None ->
+                        let typeName = output.GetType().Name
+                        eprintfn $"Warning: Artifact type '%s{typeName}' is not registered in cache config. Output will not be cached."
         }
 
     member _.Cleanup(verbose: bool): Task<CleanupResult> = task {
