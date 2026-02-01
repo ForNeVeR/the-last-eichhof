@@ -85,9 +85,9 @@ let prepareWorkspace = {
     }
 }
 
-let build: BuildTask = {
+let exe: BuildTask = {
     Id = Guid.NewGuid()
-    Name = "build"
+    Name = "exe"
     Inputs = ImmutableArray.Create(dosBoxVersionTask, prepareWorkspace)
     CacheData = Some (FileResult.CacheData "build.v1")
     Execute = fun (context, inputs) -> task {
@@ -123,6 +123,25 @@ let build: BuildTask = {
             failwithf $"File \"%s{baller.Value}\" not found. Check the compilation log for details."
 
         return FileResult baller :> IArtifact
+    }
+}
+
+let build: BuildTask = {
+    Id = Guid.NewGuid()
+    Name = "build"
+    Inputs = ImmutableArray.Create(exe)
+    CacheData = None
+    Execute = fun (context, inputs) -> task {
+        let exe = inputs |> Seq.exactlyOne :?> FileResult
+        let exe = exe.Path
+        let outputFolder = sourceFolder / "out"
+        outputFolder.CreateDirectory()
+        let target = outputFolder / exe.FileName
+        exe.Copy(target, overwrite = true)
+
+        context.Reporter.Log $"Output saved successfully to \"{target}\"."
+
+        return NullResult()
     }
 }
 

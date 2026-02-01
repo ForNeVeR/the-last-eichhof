@@ -11,3 +11,6 @@
 # .NET build system:
 bin/
 obj/
+
+# Meganob output:
+out/

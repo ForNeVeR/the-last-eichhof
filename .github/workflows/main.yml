@@ -97,3 +97,7 @@ jobs:
     - name: Build the game
       shell: pwsh
       run: dotnet run --project Build
+    - name: Upload the game
+      uses: actions/upload-artifact@v6
+      with:
+        path: out/*

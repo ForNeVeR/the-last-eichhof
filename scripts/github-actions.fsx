@@ -98,6 +98,13 @@ let workflows = [
                 "Build the game",
                 "dotnet run --project Build"
             )
+            step(
+                name = "Upload the game",
+                usesSpec = Auto "actions/upload-artifact",
+                options = Map.ofList [
+                    "path", "out/*"
+                ]
+            )
         ]
     ]
 ]
