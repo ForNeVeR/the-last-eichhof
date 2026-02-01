@@ -92,7 +92,7 @@ let workflows = [
                 name = "Build system cache",
                 usesSpec = Auto "actions/cache",
                 options = Map.ofList [
-                    "key", "${{ runner.os }}.meganob"
+                    "key", "${{ runner.os }}.meganob.v1"
                     "path", "${{ env.MEGANOB_CACHE_BASE }}"
                 ]
             )
