@@ -2,9 +2,6 @@
 ;                                                         ;
 ;                    M O U S E . A S M                    ;
 ;                                                         ;
-;                                                         ;
-;           [c] Copyright by Dany Schoch 1989             ;
-;                                                         ;
 ;---------------------------------------------------------;
 ; SPDX-FileCopyrightText: 1989-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
 ; SPDX-License-Identifier: LicenseRef-TLE

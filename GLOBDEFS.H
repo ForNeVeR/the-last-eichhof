@@ -3,10 +3,8 @@
 /*                                                       */
 /*                G L O B D E F S . H                    */
 /*                                                       */
-/*            [c] Copyright by Alpha - Helix             */
-/*            written by Dany Schochini 1989             */
-/*                                                       */
 /*-------------------------------------------------------*/
+// SPDX-FileCopyrightText: 1989 Alpha - Helix <http://www.ife.ee.ethz.ch/~ammann/alphahelix/>
 // SPDX-FileCopyrightText: 1989-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
 // SPDX-License-Identifier: LicenseRef-TLE
 

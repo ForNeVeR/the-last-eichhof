@@ -1,7 +1,5 @@
 
 ; SoundBlaster support library.
-; Written by Dany Schoch.
-; [c] copyright 1993 by alpha-helix.
 ; SPDX-FileCopyrightText: 1993 alpha-helix <http://www.ife.ee.ethz.ch/~ammann/alphahelix/>
 ; SPDX-FileCopyrightText: 1993-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
 ; SPDX-License-Identifier: LicenseRef-TLE

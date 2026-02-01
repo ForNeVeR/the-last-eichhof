@@ -2,9 +2,7 @@
 ;---------------------------------------------------------;
 ;                                                         ;
 ;                                                         ;
-;       Baller Game Driver module. [c] 1992 by            ;
-;                   ALPHA - HELIX                         ;
-;               written by Dany Schoch                    ;
+;             Baller Game Driver module.                  ;
 ;                                                         ;
 ;  This module is graphic mode independant. Just link     ;
 ;  in the proper LOW LEVEL GRAPHICS module and it works.  ;

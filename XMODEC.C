@@ -3,9 +3,6 @@
 /*       C part of the VGA undocumented 320x240          */
 /*       graphics pack.                                  */
 /*                                                       */
-/*          [c] copyright by Alpha-Helix 1992.           */
-/*              written by Dany Schoch                   */
-/*                                                       */
 /*-------------------------------------------------------*/
 // SPDX-FileCopyrightText: 1992 Alpha-Helix <http://www.ife.ee.ethz.ch/~ammann/alphahelix/>
 // SPDX-FileCopyrightText: 1993-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>

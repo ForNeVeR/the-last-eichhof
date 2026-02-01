@@ -2,8 +2,6 @@
 /*-------------------------------------------------------*/
 /*                                                       */
 /*               F I L E M A N A G E R                   */
-/*           [c] copyright 1993 by Alpha-Helix           */
-/*               written by Dany Schoch                  */
 /*                                                       */
 /*   Revision List:                                      */
 /*	27. May 93: Memory peak meter added.	 	 */
@@ -12,6 +10,7 @@
 /*	22. Sept  : 'openfile' added.			 */
 /*	30. Nov	  : 'errno.h' error compatibility added. */
 /*      19. Dez   : 'printbuffer' added.                 */
+
 // SPDX-FileCopyrightText: 1993 Alpha-Helix <http://www.ife.ee.ethz.ch/~ammann/alphahelix/>
 // SPDX-FileCopyrightText: 1993-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
 // SPDX-License-Identifier: LicenseRef-TLE
