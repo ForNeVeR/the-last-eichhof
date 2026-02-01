@@ -50,6 +50,25 @@ let workflows = [
             )
         ]
 
+        let pwsh(name, command) =
+            step(
+                name = name,
+                shell = "pwsh",
+                run = command
+            )
+
+        job "encoding" [
+            runsOn "ubuntu-24.04"
+            step(
+                name = "Check out the sources",
+                usesSpec = Auto "actions/checkout"
+            )
+            pwsh(
+                "Verify encoding",
+                "Install-Module VerifyEncoding -Repository PSGallery -RequiredVersion 2.2.1 -Force && Test-Encoding"
+            )
+        ]
+
         let mainLinuxImage = "ubuntu-24.04"
 
         let runOnAllImages = [
@@ -64,13 +83,6 @@ let workflows = [
             ])
             runsOn "${{ matrix.image }}"
         ]
-
-        let pwsh(name, command) =
-            step(
-                name = name,
-                shell = "pwsh",
-                run = command
-            )
 
         dotNetJob "meganob-tests" [
             yield! runOnAllImages
