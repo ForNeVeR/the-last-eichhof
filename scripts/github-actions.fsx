@@ -50,11 +50,13 @@ let workflows = [
             )
         ]
 
+        let mainLinuxImage = "ubuntu-24.04"
+
         let runOnAllImages = [
             strategy(failFast = false, matrix = [
                 "image", [
                     "macos-15"
-                    "ubuntu-24.04"
+                    mainLinuxImage
                     "ubuntu-24.04-arm"
                     "windows-11-arm"
                     "windows-2025"
@@ -99,6 +101,7 @@ let workflows = [
                 "dotnet run --project Build"
             )
             step(
+                condition = "${{ matrix.image == '" + mainLinuxImage + "' }}",
                 name = "Upload the game",
                 usesSpec = Auto "actions/upload-artifact",
                 options = Map.ofList [
