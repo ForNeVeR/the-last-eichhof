@@ -5,6 +5,7 @@ open System.Reflection
 open System.Threading.Tasks
 open Build
 open Meganob
+open Spectre.Console
 open TruePath
 open TruePath.SystemIo
 
@@ -116,7 +117,7 @@ let exe: BuildTask = {
             @"CD SRC"
             @"BC /b BALLER.PRJ"
         ], silent, reporter.Log)
-        reporter.Log $"# Compiler output:\n{output}"
+        reporter.Log $"# Compiler output:\n{Markup.Escape output}"
 
         let baller = workDir / "SRC" / "BALLER.EXE"
         if not <| baller.ExistsFile() then
