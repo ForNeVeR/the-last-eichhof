@@ -24,7 +24,6 @@ let private sourceFolder =
 
 // DOSBox-X version task (non-cacheable)
 let dosBoxVersionTask: BuildTask = {
-    Id = Guid.NewGuid()
     Name = "DOSBox-X version"
     Inputs = ImmutableArray.Empty
     CacheData = None  // Non-cacheable: always checks current version
@@ -51,7 +50,6 @@ let collectSources = Tasks.CollectFiles sourceFolder ([
 ] |> Seq.map LocalPathPattern)
 
 let prepareWorkspace = {
-    Id = Guid.NewGuid()
     Name = "prepare workspace"
     Inputs = ImmutableArray.Create(bcpp, collectSources)
     CacheData = Some <| DirectoryResult.CacheData "prepareWorkspace"
@@ -87,7 +85,6 @@ let prepareWorkspace = {
 }
 
 let exe: BuildTask = {
-    Id = Guid.NewGuid()
     Name = "exe"
     Inputs = ImmutableArray.Create(dosBoxVersionTask, prepareWorkspace)
     CacheData = Some (FileResult.CacheData "build.v1")
@@ -128,7 +125,6 @@ let exe: BuildTask = {
 }
 
 let build: BuildTask = {
-    Id = Guid.NewGuid()
     Name = "build"
     Inputs = ImmutableArray.Create(exe)
     CacheData = None

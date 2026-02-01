@@ -22,7 +22,6 @@ let createMockReporter() =
 
 let createTask(name: string, inputs: BuildTask seq, execute: IArtifact seq -> Task<IArtifact>) =
     {
-        Id = Guid.NewGuid()
         Name = name
         Inputs = inputs.ToImmutableArray()
         CacheData = None
