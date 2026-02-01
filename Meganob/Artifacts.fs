@@ -63,21 +63,21 @@ type DirectoryResult(directory: AbsolutePath) =
 
     interface IArtifact with
         member _.GetContentHash() = task {
-            let allFiles = directory.GetFiles "*" |> Seq.map AbsolutePath
+            let allFiles = directory.GetFiles("*", SearchOption.AllDirectories) |> Seq.map AbsolutePath
             return! FileResult.CalculateHash allFiles
         }
 
 module DirectoryResult =
     /// Create cache data for tasks that output a directory
     let CacheData(version: string): TaskCacheData = {
-        Version = version
+        Version = version + ".0"
         StoreTo = fun cacheDir output ->
             let dir = (output :?> DirectoryResult).Path
-            let files = dir.GetFiles "*" |> Seq.map AbsolutePath
+            let files = dir.GetFiles("*", SearchOption.AllDirectories) |> Seq.map AbsolutePath
             let cacheTarget = cacheDir / "data"
             for file in files do
                 let relativePath = file.RelativeTo dir
-                let destPath = cacheTarget / relativePath.FileName
+                let destPath = cacheTarget / relativePath
                 destPath.Parent.Value.CreateDirectory()
                 file.Copy(destPath)
             Task.CompletedTask

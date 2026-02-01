@@ -258,6 +258,66 @@ module CustomArtifact =
     }
 
 [<Fact>]
+let ``DirectoryResult preserves nested subdirectory structure in cache`` () = task {
+    let config = createTempCacheConfig()
+    try
+        let manager = CacheManager(config) :> ICacheManager
+        let inputs = [TestArtifact("nested-dir-input") :> IArtifact]
+        let cacheData = DirectoryResult.CacheData "dir.v1"
+
+        // Create a temp directory with nested structure
+        let tempDir = AbsolutePath(Path.Combine(Path.GetTempPath(), $"test-nested-dir-{Guid.NewGuid()}"))
+        Directory.CreateDirectory(tempDir.Value) |> ignore
+
+        // Create root/file1.txt
+        let file1 = tempDir / "file1.txt"
+        do! file1.WriteAllTextAsync "content1"
+
+        // Create root/sub/file2.txt
+        let subDir = tempDir / "sub"
+        Directory.CreateDirectory(subDir.Value) |> ignore
+        let file2 = subDir / "file2.txt"
+        do! file2.WriteAllTextAsync "content2"
+
+        // Create root/sub/deep/file3.txt
+        let deepDir = subDir / "deep"
+        Directory.CreateDirectory(deepDir.Value) |> ignore
+        let file3 = deepDir / "file3.txt"
+        do! file3.WriteAllTextAsync "content3"
+
+        try
+            let output = DirectoryResult(tempDir) :> IArtifact
+            do! manager.Store(inputs, cacheData, output)
+
+            let! result = manager.TryLoadCached(inputs, cacheData)
+
+            Assert.True(result.IsSome)
+            let loadedDir = (result.Value :?> DirectoryResult).Path
+
+            // Verify all files exist with correct relative paths
+            let loadedFile1 = loadedDir / "file1.txt"
+            let loadedFile2 = loadedDir / "sub" / "file2.txt"
+            let loadedFile3 = loadedDir / "sub" / "deep" / "file3.txt"
+
+            Assert.True(loadedFile1.ExistsFile(), "file1.txt should exist")
+            Assert.True(loadedFile2.ExistsFile(), "sub/file2.txt should exist")
+            Assert.True(loadedFile3.ExistsFile(), "sub/deep/file3.txt should exist")
+
+            // Verify content is preserved
+            let! content1 = loadedFile1.ReadAllTextAsync()
+            let! content2 = loadedFile2.ReadAllTextAsync()
+            let! content3 = loadedFile3.ReadAllTextAsync()
+
+            Assert.Equal("content1", content1)
+            Assert.Equal("content2", content2)
+            Assert.Equal("content3", content3)
+        finally
+            if tempDir.ExistsDirectory() then Directory.Delete(tempDir.Value, true)
+    finally
+        cleanup config
+}
+
+[<Fact>]
 let ``Custom artifact types can be cached`` () = task {
     let config = createTempCacheConfig()
     try
