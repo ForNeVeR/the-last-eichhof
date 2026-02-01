@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 1991-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
+// SPDX-License-Identifier: LicenseRef-TLE
 
 #include <io.h>
 #include <fcntl.h>

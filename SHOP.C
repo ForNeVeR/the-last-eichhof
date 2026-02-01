@@ -1,5 +1,8 @@
 // module shop.c
 // [c] copyright 1993 by ALPHA-HELIX
+// SPDX-FileCopyrightText: 1993 ALPHA-HELIX <http://www.ife.ee.ethz.ch/~ammann/alphahelix/>
+// SPDX-FileCopyrightText: 1994-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
+// SPDX-License-Identifier: LicenseRef-TLE
 
 #include <mem.h>
 #include <string.h>

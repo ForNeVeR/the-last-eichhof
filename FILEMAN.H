@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 1993-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
+// SPDX-License-Identifier: LicenseRef-TLE
 
 #define M_NONE		0x00		// No buffering at all.
 #define M_XMS		0x01		// Buffer file in XMS if possible.

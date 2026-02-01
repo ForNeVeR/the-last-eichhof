@@ -4,6 +4,9 @@
 ; [c] copyright 1993 by Alpha-Helix
 ; written by Dany Schoch
 ;
+; SPDX-FileCopyrightText: 1993 Alpha-Helix <http://www.ife.ee.ethz.ch/~ammann/alphahelix/>
+; SPDX-FileCopyrightText: 1993-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
+; SPDX-License-Identifier: LicenseRef-TLE
 
 	IDEAL
 	P286N

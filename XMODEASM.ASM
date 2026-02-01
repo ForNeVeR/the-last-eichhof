@@ -8,7 +8,8 @@
 ;   Parts of this code first appeard in Dr.Dobb's         ;
 ;   September 1991 issue (during my military service).    ;
 ;                                                         ;
-
+; SPDX-FileCopyrightText: 1991-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
+; SPDX-License-Identifier: LicenseRef-TLE
 
 
 

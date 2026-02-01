@@ -1,4 +1,5 @@
-
+; SPDX-FileCopyrightText: 1993-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
+; SPDX-License-Identifier: LicenseRef-TLE
 
 
 ; top of file "baller.ash"
@@ -32,7 +33,7 @@ PTRINDEXSIZE        EQU     200
 
 IDEAL
 
-TYPEDEF              ulong               DWORD 
+TYPEDEF              ulong               DWORD
 
 STARLIFES           EQU     4
 
@@ -48,7 +49,7 @@ W_EXTRALIFE         EQU     00002h
 
 NAMESIZE            EQU     20
 
-STRUC              armstrc             
+STRUC              armstrc
 armname             DB      20 DUP ( ? )
 sprite              DW      ?
 shot                DW      ?
@@ -56,7 +57,7 @@ cost                DW      ?
 period              DW      ?
 flags               DW      ?
 
-ENDS              armstrc             
+ENDS              armstrc
 
 SHOTEND             EQU     08000h
 
@@ -66,7 +67,7 @@ SHOTHOMING          EQU     08002h
 
 SHOTREFLECT         EQU     08003h
 
-STRUC              shotstrc            
+STRUC              shotstrc
 shotx               DW      ?
 shoty               DW      ?
 power               DW      ?
@@ -74,7 +75,7 @@ speed               DW      ?
 sprite              DW      ?
 data                DW      1 DUP ( ? )
 
-ENDS              shotstrc            
+ENDS              shotstrc
 
 FOE_ENDLEVEL        EQU     001h
 
@@ -100,7 +101,7 @@ FOEMARK             EQU     08005h
 
 FOESOUND            EQU     08006h
 
-STRUC              foestrc             
+STRUC              foestrc
 flags               DW      ?
 shield              DW      ?
 score               DW      ?
@@ -109,7 +110,7 @@ sprite              DW      ?
 speed               DW      ?
 path                DW      1 DUP ( ? )
 
-ENDS              foestrc             
+ENDS              foestrc
 
 EXPLEND             EQU     08000h
 
@@ -125,11 +126,11 @@ EXPLRELEASEFOE      EQU     08005h
 
 EXPLNEWPATH         EQU     08006h
 
-STRUC              explstrc            
+STRUC              explstrc
 dummy               DW      ?
 data                DW      1 DUP ( ? )
 
-ENDS              explstrc            
+ENDS              explstrc
 
 MAXARMS             EQU     7
 
@@ -145,16 +146,16 @@ LOSE_CTIME          EQU     60
 
 SHIELD_CTIME        EQU     70
 
-STRUC              aniarm              
+STRUC              aniarm
 object              DW      ?
 shot                DW      ?
 period              DW      ?
 flags               DW      ?
 periodcnt           DW      ?
 
-ENDS              aniarm              
+ENDS              aniarm
 
-STRUC              anishot             
+STRUC              anishot
 object              DW      ?
 go                  DW      ?
 power               DW      ?
@@ -163,9 +164,9 @@ dx                  DW      ?
 dy                  DW      ?
 data                DD      FAR PTR ?
 
-ENDS              anishot             
+ENDS              anishot
 
-STRUC              anifoe              
+STRUC              anifoe
 object              DW      ?
 flags               DW      ?
 score               DW      ?
@@ -183,23 +184,23 @@ z0                  DW      ?
 z1                  DW      ?
 pixelcnt            DW      ?
 
-ENDS              anifoe              
+ENDS              anifoe
 
-STRUC              aniexpl             
+STRUC              aniexpl
 object              DW      ?
 x                   DW      ?
 y                   DW      ?
 data                DD      FAR PTR ?
 
-ENDS              aniexpl             
+ENDS              aniexpl
 
-STRUC              sTableEntry         
+STRUC              sTableEntry
 sprite              DD      FAR PTR ?
 flags               DW      ?
 
-ENDS              sTableEntry         
+ENDS              sTableEntry
 
-STRUC              descrstrc           
+STRUC              descrstrc
 level               DW      ?
 text                DB      40 DUP ( ? )
 nbigboss            DW      ?
@@ -207,7 +208,7 @@ score               DW      ?
 money               DW      ?
 flags               DW      ?
 
-ENDS              descrstrc           
+ENDS              descrstrc
 
 A_COMMAND           EQU     08000h
 
@@ -219,15 +220,15 @@ A_SOUND             EQU     08002h
 
 A_MARK              EQU     08003h
 
-STRUC              attackstrc          
+STRUC              attackstrc
 count               DW      ?
 x                   DW      ?
 y                   DW      ?
 foe                 DW      ?
 
-ENDS              attackstrc          
+ENDS              attackstrc
 
-STRUC              levelstrc           
+STRUC              levelstrc
 descript            DD      FAR PTR ?
 nstars              DW      ?
 star                DD      FAR PTR ?
@@ -242,9 +243,9 @@ expl                DD      FAR PTR ?
 nsounds             DW      ?
 sound               DD      FAR PTR ?
 
-ENDS              levelstrc           
+ENDS              levelstrc
 
-STRUC              weaponstrc          
+STRUC              weaponstrc
 narms               DW      ?
 arm                 DD      FAR PTR ?
 nshots              DW      ?
@@ -252,15 +253,15 @@ shot                DD      FAR PTR ?
 nsprites            DW      ?
 sprite              DD      FAR PTR ?
 
-ENDS              weaponstrc          
+ENDS              weaponstrc
 
-STRUC              weaponlststrc       
+STRUC              weaponlststrc
 object              DW      ?
 dx                  DW      ?
 dy                  DW      ?
 arm                 armstrc <>
 
-ENDS              weaponlststrc       
+ENDS              weaponlststrc
 
 KEYSPACE            EQU     039h
 
@@ -300,21 +301,21 @@ _ext                EQU     <extern>
 
 GLOBAL C            key                 :BYTE  :128
 
-GLOBAL C            key_up              :WORD 
+GLOBAL C            key_up              :WORD
 
-GLOBAL C            key_down            :WORD 
+GLOBAL C            key_down            :WORD
 
-GLOBAL C            key_left            :WORD 
+GLOBAL C            key_left            :WORD
 
-GLOBAL C            key_right           :WORD 
+GLOBAL C            key_right           :WORD
 
-GLOBAL C            key_fire            :WORD 
+GLOBAL C            key_fire            :WORD
 
-GLOBAL C            key_pause           :WORD 
+GLOBAL C            key_pause           :WORD
 
-GLOBAL C            pressedkeys         :WORD 
+GLOBAL C            pressedkeys         :WORD
 
-GLOBAL C            tick                :WORD 
+GLOBAL C            tick                :WORD
 
 GLOBAL C            _arm                :aniarm
 
@@ -324,47 +325,47 @@ GLOBAL C            _shot               :anishot
 
 GLOBAL C            _expl               :aniexpl
 
-GLOBAL C            money               :DWORD 
+GLOBAL C            money               :DWORD
 
-GLOBAL C            score               :DWORD 
+GLOBAL C            score               :DWORD
 
-GLOBAL C            scoreold            :DWORD 
+GLOBAL C            scoreold            :DWORD
 
-GLOBAL C            cheatlevel          :WORD 
+GLOBAL C            cheatlevel          :WORD
 
-GLOBAL C            shipspeed           :WORD 
+GLOBAL C            shipspeed           :WORD
 
-GLOBAL C            lifes               :WORD 
+GLOBAL C            lifes               :WORD
 
-GLOBAL C            stage               :WORD 
+GLOBAL C            stage               :WORD
 
-GLOBAL C            nweapons            :WORD 
+GLOBAL C            nweapons            :WORD
 
 GLOBAL C            weaponlst           :weaponlststrc
 
-GLOBAL C            datapool            :FAR PTR WORD 
+GLOBAL C            datapool            :FAR PTR WORD
 
 GLOBAL C            level               :levelstrc
 
-GLOBAL C            lsprofs             :WORD 
+GLOBAL C            lsprofs             :WORD
 
-GLOBAL C            lfoeofs             :WORD 
+GLOBAL C            lfoeofs             :WORD
 
-GLOBAL C            lexplofs            :WORD 
+GLOBAL C            lexplofs            :WORD
 
-GLOBAL C            lsndofs             :WORD 
+GLOBAL C            lsndofs             :WORD
 
 GLOBAL C            weapon              :weaponstrc
 
 GLOBAL C            intindex            :WORD  :100
 
-GLOBAL C            intindexptr         :WORD 
+GLOBAL C            intindexptr         :WORD
 
 GLOBAL C            ptrindex            :FAR PTR WORD  :200
 
-GLOBAL C            ptrindexptr         :WORD 
+GLOBAL C            ptrindexptr         :WORD
 
-GLOBAL C            barfonthandle       :WORD 
+GLOBAL C            barfonthandle       :WORD
 
 GLOBAL C            int09               :FAR PTR FAR
 

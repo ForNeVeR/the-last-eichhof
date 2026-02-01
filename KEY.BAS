@@ -1,3 +1,5 @@
+REM SPDX-FileCopyrightText: 1992-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
+REM SPDX-License-Identifier: LicenseRef-TLE
 DEFINT A-Z
 CLS
 10 :

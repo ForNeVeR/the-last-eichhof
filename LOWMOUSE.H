@@ -2,7 +2,8 @@
 /*                    	                                 */
 /*                  L O W M O U S E . H                  */
 /*                                                       */
-
+// SPDX-FileCopyrightText: 1989-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
+// SPDX-License-Identifier: LicenseRef-TLE
 
 
 

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 1993-1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
+// SPDX-License-Identifier: LicenseRef-TLE
 
 #ifndef __COMPACT__ || __LARGE__
    #error NEED FAR DATA POINTERS
