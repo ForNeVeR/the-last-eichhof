@@ -98,7 +98,7 @@ let workflows = [
             )
             pwsh(
                 "Build the game",
-                "dotnet run --project Build"
+                "dotnet run --project Build -- --verbose"
             )
             step(
                 condition = "${{ matrix.image == '" + mainLinuxImage + "' }}",
