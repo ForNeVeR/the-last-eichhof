@@ -1,4 +1,4 @@
-﻿module Meganob.Tasks
+module Meganob.Tasks
 
 open System
 open System.Collections.Immutable

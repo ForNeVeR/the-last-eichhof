@@ -1,4 +1,4 @@
-﻿namespace Meganob
+namespace Meganob
 
 open System.Threading.Tasks
 open TruePath
