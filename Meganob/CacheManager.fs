@@ -38,7 +38,7 @@ type internal CacheManager(config: CacheConfig) =
     let ensureCleanDirectory (path: AbsolutePath) =
         // Clear any existing directory to handle old cache entries being replaced
         if path.ExistsDirectory() then
-            eprintfn $"Warning: Replacing outdated cache entry at '%s{path.Value}'"
+            printfn $"Warning: Replacing outdated cache entry at '%s{path.Value}'"
             path.DeleteDirectoryRecursively()
 
         path.CreateDirectory()

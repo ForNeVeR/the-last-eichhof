@@ -67,7 +67,13 @@ let private ReportError(e: Exception) =
 
 let Run(tasks: BuildTask seq, args: string seq, cacheConfig: CacheConfig option): Task<int> = task {
     try
-        let tasks = Dictionary(tasks |> Seq.map(fun t -> KeyValuePair(t.Name, t)))
+        let tasks =
+            let dict = Dictionary<string, BuildTask>()
+            for t in tasks do
+                if dict.ContainsKey t.Name then
+                    invalidArg "tasks" $"Duplicate task name: \"%s{t.Name}\"."
+                dict.Add(t.Name, t)
+            dict
         let args = Array.ofSeq args
         let verbose = args |> Array.contains "--verbose"
         let args = args |> Array.filter (fun arg -> arg <> "--verbose")
