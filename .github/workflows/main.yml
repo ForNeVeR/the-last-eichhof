@@ -96,7 +96,7 @@ jobs:
         path: ${{ env.MEGANOB_CACHE_BASE }}
     - name: Build the game
       shell: pwsh
-      run: dotnet run --project Build
+      run: dotnet run --project Build -- --verbose
     - if: ${{ matrix.image == 'ubuntu-24.04' }}
       name: Upload the game
       uses: actions/upload-artifact@v6
