@@ -26,7 +26,7 @@ let private sourceFolder =
 let dosBoxVersionTask: BuildTask = {
     Name = "DOSBox-X version"
     Inputs = ImmutableArray.Empty
-    CacheData = None  // Non-cacheable: always checks current version
+    CacheData = None
     Execute = fun _ -> task {
         let! version = DosBoxX.GetVersion()
         let hash = CacheKey.ComputeCombinedHash [version]
@@ -54,9 +54,9 @@ let prepareWorkspace = {
     Inputs = ImmutableArray.Create(bcpp, collectSources)
     CacheData = Some <| DirectoryResult.CacheData "prepareWorkspace"
     Execute = fun (context, inputs) -> task {
-        let [| bcpp; sources |] = inputs |> Seq.toArray
-        let bcpp = bcpp :?> DirectoryResult
-        let sources = sources :?> InputFileSet
+        let inputs = inputs |> Seq.toArray
+        let bcpp = inputs[0] :?> DirectoryResult
+        let sources = inputs[1] :?> InputFileSet
 
         let reporter = context.Reporter
         reporter.Status "Preparing the workspace folder"
@@ -90,7 +90,8 @@ let exe: BuildTask = {
     CacheData = Some (FileResult.CacheData "build.v1")
     Execute = fun (context, inputs) -> task {
         let silent = true
-        let [| _dosBox; workspace |] = inputs |> Seq.toArray
+        let inputs = inputs |> Seq.toArray
+        let workspace = inputs[1]
 
         let workspace = workspace :?> DirectoryResult
 

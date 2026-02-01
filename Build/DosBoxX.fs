@@ -2,8 +2,6 @@ module Build.DosBoxX
 
 open System
 open System.IO
-open System.Security.Cryptography
-open System.Text
 open System.Text.RegularExpressions
 open System.Threading.Tasks
 open Medallion.Shell
@@ -79,9 +77,3 @@ let GetVersion(): Task<string> = task {
         let version = matchResult.Groups[1].Value
         return version
 }
-
-let private computeStringHash(value: string): string =
-    use sha256 = SHA256.Create()
-    let bytes = Encoding.UTF8.GetBytes(value)
-    let hashBytes = sha256.ComputeHash(bytes)
-    Convert.ToHexString(hashBytes).ToLowerInvariant()
