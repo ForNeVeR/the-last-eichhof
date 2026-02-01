@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: 1995 Dany Schoch <dschoch@stud.ee.ethz.ch>
 SPDX-FileCopyrightText: 2026 Friedrich von Never <friedrich@fornever.me>
-SPDX-License-Identifier: LicenseRef-TLE and MIT
+SPDX-License-Identifier: LicenseRef-TLE AND MIT
 -->
 
 The Last Eichhof
@@ -28,7 +28,7 @@ How to Play
 The Last Eichhof is a DOS game, distributed as a 16-bit executable file for DOS. The recommended way of running it on a modern machine is via [DOSBox][dosbox] or [DOSBox-X][dosbox-x]. The instructions for running both are similar:
 1. Download the archive from the [Releases][releases] page.
 2. Extract the archive somewhere on your disk.
-3. Start DOSBox or DOSBos-X emulator.
+3. Start DOSBox or DOSBox-X emulator.
 4. Type the following commands:
 
    ```console
@@ -68,7 +68,7 @@ The main licenses present across the sources of this repository are [the MIT lic
 
 [docs.contributing]: CONTRIBUTING.md
 [docs.license.mit]: LICENSES/MIT.txt
-[docs.license.tke]: LICENSES/LicenseRef-TLE.txt
+[docs.license.tle]: LICENSES/LicenseRef-TLE.txt
 [dosbox-x]: https://dosbox-x.com/
 [dosbox]: https://www.dosbox.com/
 [mobygames.ahp]: https://www.mobygames.com/company/1020/alpha-helix-productions/
