@@ -14,12 +14,12 @@ To work with the project, you'll need the following software:
 
 Build
 -----
-Currently, only an action to verify the environment is available. To verify the environment, run the following command:
+To build the game, use the following command:
 ```console
 $ dotnet run --project Build
 ```
 
-It will output DOSBox-X version information, if available. In case of problems, it will print error information and exit with a non-zero exit code.
+It will produce DOS-compatible game binary and resource bundle in the `out` folder.
 
 GitHub Actions
 --------------
