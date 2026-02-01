@@ -13,7 +13,6 @@ open TruePath.SystemIo
 let DownloadFile (uri: Uri) (hash: Hash): BuildTask =
     let fileName = uri.AbsolutePath.Split('/') |> Array.last
     let inputTask = {
-        Id = Guid.NewGuid()
         Name = $"Input spec for \"{fileName}\""
         Inputs = ImmutableArray.Empty
         CacheData = None
@@ -32,7 +31,6 @@ let DownloadFile (uri: Uri) (hash: Hash): BuildTask =
         }
 
     {
-        Id = Guid.NewGuid()
         Name = "Download file"
         Inputs = ImmutableArray.Create inputTask
         CacheData = Some (FileResult.CacheData "download.v1")
@@ -87,7 +85,6 @@ let DownloadFile (uri: Uri) (hash: Hash): BuildTask =
     }
 
 let ExtractArchive(archive: BuildTask): BuildTask = {
-    Id = Guid.NewGuid()
     Name = "Extract archive"
     Inputs = ImmutableArray.Create(archive)
     CacheData = Some (DirectoryResult.CacheData "extract.v1")
@@ -100,7 +97,6 @@ let ExtractArchive(archive: BuildTask): BuildTask = {
 }
 
 let CollectFiles (sourceFolder: AbsolutePath) (patterns: LocalPathPattern seq): BuildTask = {
-    Id = Guid.NewGuid()
     Name = "Collect source files"
     Inputs = ImmutableArray.Empty
     CacheData = None  // Non-cacheable: always reads from disk

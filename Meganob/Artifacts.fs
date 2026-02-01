@@ -29,7 +29,7 @@ type FileResult(path: AbsolutePath) =
 
     static member internal CalculateHash(path: AbsolutePath) = task {
         use stream = path.OpenRead()
-        let sha256 = SHA256.Create()
+        use sha256 = SHA256.Create()
         let! bytes = sha256.ComputeHashAsync stream
         return Sha256(Convert.ToHexStringLower bytes)
     }
@@ -41,7 +41,7 @@ type FileResult(path: AbsolutePath) =
         for hash in hashes do
             do! stream.WriteAsync(hash.GetBytes())
         stream.Position <- 0L
-        let sha256 = SHA256.Create()
+        use sha256 = SHA256.Create()
         let! bytes = sha256.ComputeHashAsync stream
         return Sha256(Convert.ToHexStringLower bytes)
     }

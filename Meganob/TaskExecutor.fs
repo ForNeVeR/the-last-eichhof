@@ -7,25 +7,24 @@ open System.Threading.Channels
 open System.Threading.Tasks
 
 /// Recursively collects all tasks in the dependency graph.
-let private CollectAllTasks(root: BuildTask): Dictionary<Guid, BuildTask> =
-    let visited = Dictionary<Guid, BuildTask>()
+let private CollectAllTasks(root: BuildTask): HashSet<BuildTask> =
+    let visited = HashSet<BuildTask>()
     let rec walk (task: BuildTask) =
-        if not (visited.ContainsKey task.Id) then
-            visited[task.Id] <- task
+        if visited.Add task then
             for input in task.Inputs do
                 walk input
     walk root
     visited
 
 /// Builds a reverse dependency map: task ID -> list of task IDs that depend on it.
-let private BuildDependentsMap(tasks: Dictionary<Guid, BuildTask>): Dictionary<Guid, ResizeArray<Guid>> =
-    let dependents = Dictionary<Guid, ResizeArray<Guid>>()
-    for kvp in tasks do
-        if not (dependents.ContainsKey kvp.Key) then
-            dependents[kvp.Key] <- ResizeArray()
-    for kvp in tasks do
-        for input in kvp.Value.Inputs do
-            dependents[input.Id].Add kvp.Key
+let private BuildDependentsMap(tasks: HashSet<BuildTask>): Dictionary<BuildTask, ResizeArray<BuildTask>> =
+    let dependents = Dictionary<BuildTask, ResizeArray<BuildTask>>()
+    for task in tasks do
+        if not (dependents.ContainsKey task) then
+            dependents[task] <- ResizeArray()
+    for task in tasks do
+        for input in task.Inputs do
+            dependents[input].Add task
     dependents
 
 /// Executes a BuildTask and all its dependencies with maximum parallelism.
@@ -35,9 +34,9 @@ let Execute(context: BuildContext, rootTask: BuildTask): Task<IArtifact> =
     let dependents = BuildDependentsMap allTasks
 
     // Build initial indegree map (number of unfinished dependencies)
-    let inDegree = Dictionary<Guid, int>()
-    for kvp in allTasks do
-        inDegree[kvp.Key] <- kvp.Value.Inputs.Length
+    let inDegree = Dictionary<BuildTask, int>()
+    for task in allTasks do
+        inDegree[task] <- task.Inputs.Length
 
     // State for parallel execution
     let outputs = ConcurrentDictionary<BuildTask, IArtifact>()
@@ -51,9 +50,9 @@ let Execute(context: BuildContext, rootTask: BuildTask): Task<IArtifact> =
         if not success then failwithf "Unexpected rejection from channel."
 
     // Initialize ready queue with tasks that have no dependencies
-    for kvp in allTasks do
-        if inDegree[kvp.Key] = 0 then
-            enqueueResult kvp.Value
+    for task in allTasks do
+        if inDegree[task] = 0 then
+            enqueueResult task
 
     let processTask (buildTask: BuildTask): Task =
         task {
@@ -83,10 +82,10 @@ let Execute(context: BuildContext, rootTask: BuildTask): Task<IArtifact> =
                     completedCount <- completedCount + 1
 
                     // Decrement indegree of dependents and enqueue newly ready tasks
-                    for dependentId in dependents[buildTask.Id] do
-                        inDegree[dependentId] <- inDegree[dependentId] - 1
-                        if inDegree[dependentId] = 0 then
-                            enqueueResult allTasks[dependentId]
+                    for dependent in dependents[buildTask] do
+                        inDegree[dependent] <- inDegree[dependent] - 1
+                        if inDegree[dependent] = 0 then
+                            enqueueResult dependent
 
                     // Check if all tasks are done
                     if completedCount = allTasks.Count then
