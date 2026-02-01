@@ -50,7 +50,7 @@ let collectSources = Tasks.CollectFiles sourceFolder ([
 ] |> Seq.map LocalPathPattern)
 
 let prepareWorkspace = {
-    Name = "prepare workspace"
+    Name = "prepare-workspace"
     Inputs = ImmutableArray.Create(bcpp, collectSources)
     CacheData = Some <| DirectoryResult.CacheData "prepareWorkspace"
     Execute = fun (context, inputs) -> task {
@@ -125,25 +125,41 @@ let exe: BuildTask = {
     }
 }
 
+let downloadData =
+    Tasks.DownloadFile
+        (Uri "https://archive.org/download/TheLastEichhof/beer11.zip")
+        (Sha256 "E284C0113AE76BC997868410D8639A39982886C6ABCAA8106B96736E0FDE3410")
+let data = Tasks.ExtractArchive downloadData
+
 let build: BuildTask = {
     Name = "build"
-    Inputs = ImmutableArray.Create(exe)
+    Inputs = ImmutableArray.Create(exe, data)
     CacheData = None
     Execute = fun (context, inputs) -> task {
-        let exe = inputs |> Seq.exactlyOne :?> FileResult
+        let inputs = inputs |> Seq.toArray
+
+        let exe = inputs[0] :?> FileResult
         let exe = exe.Path
+
+        let data = inputs[1] :?> DirectoryResult
+
         let outputFolder = sourceFolder / "out"
         outputFolder.CreateDirectory()
-        let target = outputFolder / exe.FileName
-        exe.Copy(target, overwrite = true)
 
-        context.Reporter.Log $"Output saved successfully to \"{target}\"."
+        let exeTarget = outputFolder / exe.FileName
+        exe.Copy(exeTarget, overwrite = true)
+
+        let dataFile = data.Path / "BEER.DAT"
+        let dataTarget = outputFolder / dataFile.FileName
+        dataFile.Copy(dataTarget, overwrite = true)
+
+        context.Reporter.Log $"Output saved successfully to \"{outputFolder}\"."
 
         return NullResult()
     }
 }
 
-let private tasks = [bcpp; build ]
+let private tasks = [bcpp; build]
 
 [<EntryPoint>]
 let main(args: string[]): int =
