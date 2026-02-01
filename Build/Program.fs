@@ -1,5 +1,6 @@
 open System
 open System.Collections.Immutable
+open System.IO
 open System.Reflection
 open System.Threading.Tasks
 open Build
@@ -39,22 +40,65 @@ let borlandCppDownloadTask =
         (Sha256 "CEAA8852DD2EE33AEDD471595051931BF96B44EFEE2AA2CD3706E41E38426F84")
 let bcpp = Tasks.ExtractArchive borlandCppDownloadTask
 
-let collectSources = Tasks.CollectFiles sourceFolder [LocalPathPattern "*.PRJ"]
+let collectSources = Tasks.CollectFiles sourceFolder ([
+    "*.ASH"
+    "*.ASM"
+    "*.C"
+    "*.DEF"
+    "*.H"
+    "*.PRJ"
+] |> Seq.map LocalPathPattern)
+
+let prepareWorkspace = {
+    Id = Guid.NewGuid()
+    Name = "prepare workspace"
+    Inputs = ImmutableArray.Create(bcpp, collectSources)
+    CacheData = Some <| DirectoryResult.CacheData "prepareWorkspace"
+    Execute = fun (context, inputs) -> task {
+        let [| bcpp; sources |] = inputs |> Seq.toArray
+        let bcpp = bcpp :?> DirectoryResult
+        let sources = sources :?> InputFileSet
+
+        let reporter = context.Reporter
+        reporter.Status "Preparing the workspace folder"
+
+        let mutable entries = 0
+        let diskRoot = Temporary.CreateTempFolder()
+        for file in bcpp.Path.GetFiles("*", SearchOption.AllDirectories) |> Seq.map AbsolutePath do
+            let relativePath = file.RelativeTo bcpp.Path
+            let target = diskRoot / "BC" / relativePath
+            target.Parent.Value.CreateDirectory()
+            file.Copy target
+            entries <- entries + 1
+
+        let mutable sourceEntries = 0
+        for source in sources.Files do
+            let dest = diskRoot / "SRC" / source.RelativeTo sourceFolder
+            dest.Parent.Value.CreateDirectory()
+            source.Copy dest
+            entries <- entries + 1
+            sourceEntries <- sourceEntries + 1
+
+        reporter.Log $"Prepared a workspace with {entries} entries ({sourceEntries} source files)."
+
+        return DirectoryResult(diskRoot)
+    }
+}
 
 let build: BuildTask = {
     Id = Guid.NewGuid()
     Name = "build"
-    Inputs = ImmutableArray.Create(dosBoxVersionTask, bcpp, collectSources)
+    Inputs = ImmutableArray.Create(dosBoxVersionTask, prepareWorkspace)
     CacheData = Some (FileResult.CacheData "build.v1")
     Execute = fun (context, inputs) -> task {
-        let [|_dosBox; bcpp; sources|] = inputs |> Seq.toArray
+        let silent = true
+        let [| _dosBox; workspace |] = inputs |> Seq.toArray
 
-        let bcpp = bcpp :?> DirectoryResult
-        let sources = sources :?> InputFileSet
+        let workspace = workspace :?> DirectoryResult
 
         let workDir = Temporary.CreateTempFolder "tle"
-        for source in sources.Files do
-            let dest = workDir / source.RelativeTo sourceFolder
+        for source in workspace.Path.GetFiles("*", SearchOption.AllDirectories) |> Seq.map AbsolutePath do
+            let dest = workDir / source.RelativeTo workspace.Path
             dest.Parent.Value.CreateDirectory()
             source.Copy dest
 
@@ -66,15 +110,15 @@ let build: BuildTask = {
         let reporter = context.Reporter
         reporter.Status "Calling BC compiler in DOSBox-X"
         let! output = DosBoxX.RunCommands(dosBox, [
-            $"MOUNT B \"%s{bcpp.Path.Value}\" -ro"
-            $"MOUNT S \"%s{workDir.Value}\""
-            @"SET PATH=B:\BIN;%PATH%"
-            @"S:"
-            @"BC BALLER.PRJ"
-        ], reporter.Log)
+            $"MOUNT C \"%s{workDir.Value}\""
+            @"SET PATH=C:\BC\BIN;%PATH%"
+            @"C:"
+            @"CD SRC"
+            @"BC /b BALLER.PRJ"
+        ], silent, reporter.Log)
         reporter.Log $"# Compiler output:\n{output}"
 
-        let baller = workDir / "BALLER.EXE"
+        let baller = workDir / "SRC" / "BALLER.EXE"
         if not <| baller.ExistsFile() then
             failwithf $"File \"%s{baller.Value}\" not found. Check the compilation log for details."
 

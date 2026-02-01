@@ -44,15 +44,17 @@ let private RunProcess(executable: AbsolutePath, args: string seq): Task<Command
     let args = args |> Seq.map box |> Seq.toArray
     Command.Run(executable.Value, arguments = args).Task
 
-let RunCommands(dosBox: AbsolutePath, commands: string seq, logger: string -> unit) = task {
+let RunCommands(dosBox: AbsolutePath, commands: string seq, silent: bool, logger: string -> unit) = task {
     let logFile = Temporary.CreateTempFile()
 
     let! result = RunProcess(dosBox, [|
         "-noconfig"
+        "-set"; "cpu cycles=max"
+        "-set"; "cpu turbo=true"
         "-set"; $"log logfile=%s{logFile.Value}"
         "-set"; "dos log console=quiet" // keep only the terminal output in the log file
         yield! commands |> Seq.collect(fun c -> ["-c"; c])
-        "-silent" // exit after command termination
+        if silent then "-silent" // exit after command termination
     |])
 
     logger $"Command exit code: %d{result.ExitCode}"
@@ -70,7 +72,7 @@ let GetVersion(): Task<string> = task {
     match dosBox with
     | None -> return failwithf "Cannot find DOSBox-X executable."
     | Some dosBox ->
-        let! output = RunCommands(dosBox, ["ver"], ignore)
+        let! output = RunCommands(dosBox, ["ver"], true, ignore)
         let matchResult = Regex("(?:^|\n)DOSBox.+?version (.+?). Reported").Match output
         if not matchResult.Success then
             failwithf "Cannot parse DOSBox-X version."
