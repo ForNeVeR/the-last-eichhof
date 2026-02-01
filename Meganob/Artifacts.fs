@@ -9,6 +9,12 @@ open Meganob
 open TruePath
 open TruePath.SystemIo
 
+type NullResult() =
+    interface IArtifact with
+        member _.GetContentHash() = Task.FromResult(
+            Sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+        )
+
 type ValueArtifact<'T>(value: 'T, hash: Hash) =
     member _.Value = value
 

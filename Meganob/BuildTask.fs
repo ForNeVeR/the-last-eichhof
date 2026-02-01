@@ -33,7 +33,7 @@ module CacheKey =
 [<CustomComparison; CustomEquality>]
 type BuildTask =
     {
-        Id: Guid
+        Id: Guid // TODO: Get rid of this field
         Name: string
         Inputs: ImmutableArray<BuildTask>
         CacheData: TaskCacheData option  // None = non-cacheable
