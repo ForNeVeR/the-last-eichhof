@@ -29,4 +29,3 @@ void m_definecursor(int x, int y, void far *shape);
 
 
 
-
