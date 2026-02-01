@@ -55,12 +55,19 @@ module FileResult =
             file.Copy(cacheDir / file.FileName)
             Task.CompletedTask
         LoadFrom = fun cacheDir -> task {
-            let files = Directory.GetFiles(cacheDir.Value)
-                        |> Array.filter (fun f -> Path.GetFileName(f) <> "cache.json")
-            if files.Length > 0 then
-                return Some (FileResult(AbsolutePath(files[0])) :> IArtifact)
-            else
+            let files =
+                Directory.GetFiles(cacheDir.Value)
+                |> Array.filter (fun f -> Path.GetFileName(f) <> "cache.json")
+
+            match files.Length with
+            | 0 ->
                 return None
+            | 1 ->
+                return Some (FileResult(AbsolutePath(files[0])) :> IArtifact)
+            | count ->
+                return raise (InvalidOperationException(
+                    $"Expected exactly one cached file in '{cacheDir}', but found {count}."
+                ))
         }
     }
 
@@ -76,7 +83,7 @@ type DirectoryResult(directory: AbsolutePath) =
 module DirectoryResult =
     /// Create cache data for tasks that output a directory
     let CacheData(version: string): TaskCacheData = {
-        Version = version + ".0"
+        Version = version
         StoreTo = fun cacheDir output ->
             let dir = (output :?> DirectoryResult).Path
             let files = dir.GetFiles("*", SearchOption.AllDirectories) |> Seq.map AbsolutePath
