@@ -3,6 +3,18 @@
   <Folder Name="/.github/workflows/">
     <File Path=".github/workflows/main.yml" />
   </Folder>
+  <Folder Name="/docs/">
+    <File Path="docs/credits.1.png" />
+    <File Path="docs/credits.1.png.license" />
+    <File Path="docs/credits.2.png" />
+    <File Path="docs/credits.2.png.license" />
+    <File Path="docs/screen.menu.png" />
+    <File Path="docs/screen.menu.png.license" />
+    <File Path="docs/screen.stage-1.png" />
+    <File Path="docs/screen.stage-1.png.license" />
+    <File Path="docs/screen.title.png" />
+    <File Path="docs/screen.title.png.license" />
+  </Folder>
   <Folder Name="/LICENSES/">
     <File Path="LICENSES/LicenseRef-TLE.txt" />
     <File Path="LICENSES/MIT.txt" />
@@ -17,6 +29,7 @@
     <File Path="CONTRIBUTING.md" />
     <File Path="global.json" />
     <File Path="global.json.license" />
+    <File Path="README.md" />
     <File Path="renovate.json" />
     <File Path="renovate.json.license" />
   </Folder>

@@ -19,7 +19,14 @@ To build the game, use the following command:
 $ dotnet run --project Build
 ```
 
-It will produce DOS-compatible game binary and resource bundle in the `out` folder.
+This will use a downloaded Borland C++ 3.1 compiler in an isolated DOSBox-X environment.
+
+It will produce a DOS-compatible game binary and resource bundle in the `out` folder.
+
+### Manual Build
+1. Make sure you have Borland C++ installed in `C:\BC` in your DOSBox (otherwise, you'll need to change the include and library paths in the `.PRJ` file).
+2. `BC BALLER.PRJ`
+3. **Build All**.
 
 License Automation
 ------------------
