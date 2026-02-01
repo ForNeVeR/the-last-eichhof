@@ -78,7 +78,10 @@ let Run(tasks: BuildTask seq, args: string seq, cacheConfig: CacheConfig option)
         let verbose = args |> Array.contains "--verbose"
         let args = args |> Array.filter (fun arg -> arg <> "--verbose")
 
-        let cacheManager = CacheManager(cacheConfig |> Option.defaultValue CacheConfig.Default)
+        let cacheConfig = cacheConfig |> Option.defaultValue CacheConfig.Default
+        let cacheManager = CacheManager cacheConfig
+        if verbose then
+            printfn $"Build system cache folder: \"%s{cacheConfig.CacheFolder.Value}\"."
         let! cleanupResult = cacheManager.Cleanup(verbose)
         if cleanupResult.EntriesRemoved > 0 then
             printfn $"Cache cleanup: removed %d{cleanupResult.EntriesRemoved} entries, freed %s{FormatBytes cleanupResult.BytesFreed}"
