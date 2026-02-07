@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 Friedrich von Never <friedrich@fornever.me>
+#
+# SPDX-License-Identifier: MIT
+
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("//tools/dos_cc:dos_cc.bzl", "dos_cc_binary")
+
+dos_cc_binary(
+    name = "baller",
+    srcs = glob(["*.ASH", "*.ASM", "*.C", "*.DEF", "*.H", "*.PRJ"]),
+    compiler = "@bcpp31//:all_files",
+    project_file = "BALLER.PRJ",
+    out = "BALLER.EXE",
+)
+
+copy_file(
+    name = "beer_dat",
+    src = "@beer11//:beer_dat",
+    out = "BEER.DAT",
+)
+
+filegroup(
+    name = "game",
+    srcs = [":baller", ":beer_dat"],
+)

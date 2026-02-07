@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Friedrich von Never <friedrich@fornever.me>
+#
+# SPDX-License-Identifier: MIT
+
+load("@rules_dotnet//dotnet:defs.bzl", "fsharp_binary")
+
+fsharp_binary(
+    name = "compiler",
+    srcs = ["DosBoxX.fs", "Program.fs"],
+    deps = [
+        "@paket.main//fsharp.core",
+        "@paket.main//medallionshell",
+        "@paket.main//truepath",
+        "@paket.main//truepath.systemio",
+    ],
+    target_frameworks = ["net10.0"],
+    visibility = ["//visibility:public"],
+)

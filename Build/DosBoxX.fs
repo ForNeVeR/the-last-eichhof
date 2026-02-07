@@ -25,7 +25,7 @@ let FindExecutable(): AbsolutePath option =
             |> Seq.map p.WithExtension
             |> Seq.tryFind _.ExistsFile()
 
-    let path = Environment.GetEnvironmentVariable "PATH"
+    let path = Environment.GetEnvironmentVariable "PATH" |> Option.ofObj |> Option.defaultValue ""
     let folders = path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
     let defaultLocations =
         if OperatingSystem.IsWindows() then [|AbsolutePath "C:\DOSBox-X"|]
@@ -47,7 +47,7 @@ let private RunProcess(executable: AbsolutePath, args: string seq): Task<Command
     Command.Run(executable.Value, arguments = args).Task
 
 let RunCommands(dosBox: AbsolutePath, commands: string seq, silent: bool, logger: string -> unit) = task {
-    let logFile = Temporary.CreateTempFile()
+    let logFile = AbsolutePath(Path.GetTempFileName())
 
     let! result = RunProcess(dosBox, [|
         "-noconfig"

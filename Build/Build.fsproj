@@ -22,8 +22,4 @@ SPDX-License-Identifier: MIT
       <PackageReference Include="TruePath.SystemIo" Version="1.11.0" />
     </ItemGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\Meganob\Meganob.fsproj" />
-    </ItemGroup>
-
 </Project>

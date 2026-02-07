@@ -96,40 +96,35 @@ let workflows = [
             runsOn "${{ matrix.image }}"
         ]
 
-        dotNetJob "meganob-tests" [
+        job "build" [
             yield! runOnAllImages
-            pwsh(
-                "Run tests",
-                "dotnet test"
+
+            step(
+                name = "Check out the sources",
+                usesSpec = Auto "actions/checkout"
             )
-        ]
-
-        dotNetJob "build" [
-            yield! runOnAllImages
-            setEnv "MEGANOB_CACHE_BASE" "${{ github.workspace }}/.meganob"
-
             pwsh(
                 "Install DOSBox-X",
                 "scripts/Install-DOSBox-X.ps1"
             )
             step(
-                name = "Build system cache",
+                name = "Bazel disk cache",
                 usesSpec = Auto "actions/cache",
                 options = Map.ofList [
-                    "key", "${{ runner.os }}.meganob.v1"
-                    "path", "${{ env.MEGANOB_CACHE_BASE }}"
+                    "key", "${{ runner.os }}.bazel.v1"
+                    "path", "~/.cache/bazel"
                 ]
             )
             pwsh(
                 "Build the game",
-                "dotnet run --project Build -- --verbose"
+                "bazelisk build //:game"
             )
             step(
                 condition = "${{ matrix.image == '" + mainLinuxImage + "' }}",
                 name = "Upload the game",
                 usesSpec = Auto "actions/upload-artifact",
                 options = Map.ofList [
-                    "path", "out/*"
+                    "path", "bazel-bin/BALLER.EXE\nbazel-bin/BEER.DAT"
                 ]
             )
         ]

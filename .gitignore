@@ -12,5 +12,8 @@
 bin/
 obj/
 
-# Meganob output:
+# Build output:
 out/
+
+# Bazel:
+/bazel-*

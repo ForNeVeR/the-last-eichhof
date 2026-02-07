@@ -9,24 +9,42 @@ Contributor Guide
 Prerequisites
 -------------
 To work with the project, you'll need the following software:
-- [.NET SDK 10][dotnet-sdk] or later,
+- [Bazel][bazel] (via [Bazelisk][bazelisk]),
 - [DOSBox-X][dosbox-x].
+
+For working with the build system or the CI workflow script (`scripts/github-actions.fsx`), you'll also need [.NET SDK 10][dotnet-sdk].
 
 Build
 -----
 To build the game, use the following command:
 ```console
-$ dotnet run --project Build
+$ bazel build //:game
 ```
 
 This will use a downloaded Borland C++ 3.1 compiler in an isolated DOSBox-X environment.
 
-It will produce a DOS-compatible game binary and resource bundle in the `out` folder.
+The game binary (`BALLER.EXE`) will be produced in `bazel-bin/`, and the resource bundle (`BEER.DAT`) will be available as part of the `:game` target.
 
 ### Manual Build
 1. Make sure you have Borland C++ installed in `C:\BC` in your DOSBox (otherwise, you'll need to change the include and library paths in the `.PRJ` file).
 2. `BC BALLER.PRJ`
 3. **Build All**.
+
+NuGet Dependencies
+------------------
+The F# build tool (`Build/`) uses [Paket][paket] and `paket2bazel` to manage NuGet dependencies. If you change `paket.dependencies`, you need to regenerate the Bazel dependency files:
+
+1. Edit `paket.dependencies` as needed.
+2. Run Paket to update the lock file:
+   ```console
+   $ dotnet paket install
+   ```
+3. Regenerate the Bazel files:
+   ```console
+   $ bazelisk run @rules_dotnet//tools/paket2bazel -- --dependencies-file $(pwd)/paket.dependencies --output-folder $(pwd)
+   ```
+
+This regenerates `paket.main.bzl` and `paket.main_extension.bzl`. Commit these generated files along with your changes.
 
 License Automation
 ------------------
@@ -63,6 +81,9 @@ Then run the following shell command:
 $ dotnet fsi scripts/github-actions.fsx
 ```
 
+[bazel]: https://bazel.build/
+[bazelisk]: https://github.com/bazelbuild/bazelisk
 [dosbox-x]: https://dosbox-x.com/
 [dotnet-sdk]: https://dotnet.microsoft.com/en-us/download
+[paket]: https://fsprojects.github.io/Paket/
 [powershell]: https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell

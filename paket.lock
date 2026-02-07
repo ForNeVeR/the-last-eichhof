@@ -1,0 +1,11 @@
+STORAGE: NONE
+RESTRICTION: == net10.0
+NUGET
+  remote: https://api.nuget.org/v3/index.json
+    FSharp.Core (10.0.100)
+    MedallionShell (1.6.2)
+    Microsoft.Bcl.Memory (10.0.2)
+    TruePath (1.11)
+      Microsoft.Bcl.Memory (>= 9.0.10)
+    TruePath.SystemIo (1.11)
+      TruePath (>= 1.11)
