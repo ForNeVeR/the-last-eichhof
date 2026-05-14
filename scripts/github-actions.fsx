@@ -86,7 +86,7 @@ let workflows = [
         let runOnAllImages = [
             strategy(failFast = false, matrix = [
                 "image", [
-                    "macos-15"
+                    "macos-26"
                     mainLinuxImage
                     "ubuntu-24.04-arm"
                     "windows-11-arm"
