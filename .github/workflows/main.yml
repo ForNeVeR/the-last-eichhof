@@ -25,7 +25,7 @@ jobs:
     - name: Check out the sources
       uses: actions/checkout@v6
     - name: Set up .NET SDK
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
     - name: Cache NuGet packages
       uses: actions/cache@v5
       with:
@@ -66,7 +66,7 @@ jobs:
     - name: Check out the sources
       uses: actions/checkout@v6
     - name: Set up .NET SDK
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
     - name: Cache NuGet packages
       uses: actions/cache@v5
       with:
@@ -95,7 +95,7 @@ jobs:
     - name: Check out the sources
       uses: actions/checkout@v6
     - name: Set up .NET SDK
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
     - name: Cache NuGet packages
       uses: actions/cache@v5
       with:
