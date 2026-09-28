@@ -68,7 +68,7 @@ The main licenses present across the sources of this repository are [the MIT lic
 
 [docs.contributing]: CONTRIBUTING.md
 [docs.license.mit]: LICENSES/MIT.txt
-[docs.license.tke]: LICENSES/LicenseRef-TLE.txt
+[docs.license.tle]: LICENSES/LicenseRef-TLE.txt
 [dosbox-x]: https://dosbox-x.com/
 [dosbox]: https://www.dosbox.com/
 [mobygames.ahp]: https://www.mobygames.com/company/1020/alpha-helix-productions/
