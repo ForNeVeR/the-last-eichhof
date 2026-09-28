@@ -44,7 +44,7 @@ let workflows = [
         ]
 
         dotNetJob "verify-workflows" [
-            runsOn "ubuntu-24.04"
+            runsOn "ubuntu-26.04"
             step(
                 run = "dotnet fsi ./scripts/github-actions.fsx verify"
             )
@@ -58,7 +58,7 @@ let workflows = [
             )
 
         job "encoding" [
-            runsOn "ubuntu-24.04"
+            runsOn "ubuntu-26.04"
             step(
                 name = "Check out the sources",
                 usesSpec = Auto "actions/checkout"
@@ -70,7 +70,7 @@ let workflows = [
         ]
 
         job "licenses" [
-            runsOn "ubuntu-24.04"
+            runsOn "ubuntu-26.04"
             step(
                 name = "Check out the sources",
                 usesSpec = Auto "actions/checkout"
@@ -81,14 +81,14 @@ let workflows = [
             )
         ]
 
-        let mainLinuxImage = "ubuntu-24.04"
+        let mainLinuxImage = "ubuntu-26.04"
 
         let runOnAllImages = [
             strategy(failFast = false, matrix = [
                 "image", [
                     "macos-15"
                     mainLinuxImage
-                    "ubuntu-24.04-arm"
+                    "ubuntu-26.04-arm"
                     "windows-11-arm"
                     "windows-2025"
                 ]
